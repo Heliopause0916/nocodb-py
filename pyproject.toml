@@ -1,0 +1,35 @@
+[build-system]
+requires = [
+    "setuptools>=61.0",
+    "wheel",
+    "setuptools-scm>=7.0"
+]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "nocodb-py"
+version = "0.0.0"
+description = "Python SDK for NocoDB (early development)"
+requires-python = ">=3.8"
+dependencies = [
+    "requests>=2.25.0",
+]
+
+[tool.setuptools-scm]
+# 早期开发使用此格式：0.0.0.dev{commit_count}+g{short_hash}
+version_scheme = "guess-next-dev"
+local_scheme = "no-local-version"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["nocodb_py*"]
+
+# 开发依赖（单独分组）
+# [project.optional-dependencies]
+# dev = [
+#     "pytest>=7.0",
+#     "pytest-cov>=4.0",
+#     "black>=23.0",
+#     "ruff>=0.0.285",
+#     "types-requests>=0.0"
+# ]

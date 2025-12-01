@@ -25,7 +25,7 @@ class NocoDBClient:
         self.base_url = base_url
         self.xc_token = xc_token
         
-    def __str__(self):
+    def __str__(self) -> str:
         """
         String representation of the NocoDBClient
         
@@ -34,7 +34,7 @@ class NocoDBClient:
         """
         return f"NocoDBClient(base_url='{self.base_url}', xc_token='***')"
     
-    def __repr__(self):
+    def __repr__(self) -> str:
         """
         Official string representation of the NocoDBClient
         
@@ -42,6 +42,13 @@ class NocoDBClient:
             str: Official representation of the client
         """
         return self.__str__()
+    
+    def __get(self, path: str) -> dict:
+        url = f"{self.base_url}{path}"
+        headers = {"xc-token": self.xc_token}
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+        return response.json()
     
     def get_nocodb_info(self):
         """
@@ -53,10 +60,5 @@ class NocoDBClient:
         Raises:
             requests.exceptions.RequestException: If the request fails
         """
-        url = f"{self.base_url}/api/v1/db/meta/nocodb/info"
-        headers = {"xc-token": self.xc_token}
-        
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()  # Raise an exception for bad status codes
-        
-        return response.json()
+        return self.__get("/api/v1/db/meta/nocodb/info")
+
