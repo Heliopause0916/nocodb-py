@@ -32,7 +32,7 @@ class NocoDBClient:
         Returns:
             str: String representation of the client
         """
-        return f"NocoDBClient(base_url='{self.base_url}', xc_token='***')"
+        return f"NocoDBClient(base_url='{self._base_url}', xc_token='***')"
     
     def __repr__(self) -> str:
         """
@@ -43,14 +43,14 @@ class NocoDBClient:
         """
         return self.__str__()
     
-    def __get(self, path: str) -> dict:
-        url = f"{self.base_url}{path}"
-        headers = {"xc-token": self.xc_token}
+    def _get(self, path: str) -> dict:
+        url = f"{self._base_url}{path}"
+        headers = {"xc-token": self._xc_token}
         response = requests.get(url, headers=headers)
         response.raise_for_status()
         return response.json()
     
-    def __get_nocodb_info(self):
+    def _get_nocodb_info(self):
         """
         Get NocoDB instance information from /api/v1/db/meta/nocodb/info
         
@@ -60,7 +60,7 @@ class NocoDBClient:
         Raises:
             requests.exceptions.RequestException: If the request fails
         """
-        return self.__get("/api/v1/db/meta/nocodb/info")
+        return self._get("/api/v1/db/meta/nocodb/info")
 
     def server_version(self) -> str:
         """
@@ -69,17 +69,17 @@ class NocoDBClient:
         Returns:
             str: Server version string
         """
-        info = self.__get_nocodb_info()
+        info = self._get_nocodb_info()
         return info.get("version", "Unknown")
 
-    def __get_me(self) -> dict:
+    def _get_me(self) -> dict:
         """
         Get current user information
         
         Returns:
             dict: User information
         """
-        return self.__get("/api/v1/auth/user/me")
+        return self._get("/api/v1/auth/user/me")
     
     def user_id(self) -> str:
         """
@@ -88,7 +88,7 @@ class NocoDBClient:
         Returns:
             str: User ID
         """
-        me = self.__get_me()
+        me = self._get_me()
         return me.get("id", "Unknown") if me else "Unknown"
     
     def user_email(self) -> str:
@@ -98,7 +98,7 @@ class NocoDBClient:
         Returns:
             str: User email
         """
-        me = self.__get_me()
+        me = self._get_me()
         return me.get("email", "Unknown") if me else "Unknown"
     
     def user_display_name(self) -> str:
@@ -108,5 +108,5 @@ class NocoDBClient:
         Returns:
             str: User display name
         """
-        me = self.__get_me()
+        me = self._get_me()
         return me.get("display_name", "Unknown") if me else "Unknown"
