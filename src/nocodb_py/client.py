@@ -12,9 +12,13 @@ class NocoDBClient:
     Attributes:
         base_url (str): The base URL of the NocoDB instance
         xc_token (str): The authentication token for NocoDB API
+        nocodb_info_ttl (int): Cache TTL for server info in seconds (default: 3600)
+        user_info_ttl (int): Cache TTL for user info in seconds (default: 300)
     """
     
-    def __init__(self, base_url: str, xc_token: str):
+    def __init__(self, base_url: str, xc_token: str,
+                 nocodb_info_ttl: int = 3600, 
+                 user_info_ttl: int = 300):
         """
         Initialize the NocoDBClient with base_url and xc_token
         
@@ -22,8 +26,10 @@ class NocoDBClient:
             base_url (str): The base URL of the NocoDB instance
             xc_token (str): The authentication token for NocoDB API
         """
-        self.base_url = base_url
-        self.xc_token = xc_token
+        self._base_url = base_url
+        self._xc_token = xc_token
+        self._nocodb_info_ttl = nocodb_info_ttl
+        self._user_info_ttl = user_info_ttl
         
     def __str__(self) -> str:
         """
