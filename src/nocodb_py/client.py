@@ -50,7 +50,7 @@ class NocoDBClient:
         response.raise_for_status()
         return response.json()
     
-    def get_nocodb_info(self):
+    def __get_nocodb_info(self):
         """
         Get NocoDB instance information from /api/v1/db/meta/nocodb/info
         
@@ -62,3 +62,51 @@ class NocoDBClient:
         """
         return self.__get("/api/v1/db/meta/nocodb/info")
 
+    def server_version(self) -> str:
+        """
+        Get NocoDB server version
+        
+        Returns:
+            str: Server version string
+        """
+        info = self.__get_nocodb_info()
+        return info.get("version", "Unknown")
+
+    def __get_me(self) -> dict:
+        """
+        Get current user information
+        
+        Returns:
+            dict: User information
+        """
+        return self.__get("/api/v1/auth/user/me")
+    
+    def user_id(self) -> str:
+        """
+        Get current user ID
+        
+        Returns:
+            str: User ID
+        """
+        me = self.__get_me()
+        return me.get("id", "Unknown") if me else "Unknown"
+    
+    def user_email(self) -> str:
+        """
+        Get current user email
+        
+        Returns:
+            str: User email
+        """
+        me = self.__get_me()
+        return me.get("email", "Unknown") if me else "Unknown"
+    
+    def user_display_name(self) -> str:
+        """
+        Get current user display name
+        
+        Returns:
+            str: User display name
+        """
+        me = self.__get_me()
+        return me.get("display_name", "Unknown") if me else "Unknown"
