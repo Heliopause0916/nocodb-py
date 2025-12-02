@@ -48,7 +48,13 @@ class NocoDBClient:
         for key, ttl in self._cache_ttl_policies.items():
             if not isinstance(ttl, int) or ttl <= 0:
                 raise ValueError(f"Cache ttl for '{key}' must be positive integer")
-            
+        
+        self._nocodb_info_cache = None
+        self._nocodb_info_timestamp = 0
+        self._user_me_cache = None
+        self._user_me_timestamp = 0
+
+        self._cache_lock = threading.RLock()
         
     def __str__(self) -> str:
         """
@@ -81,14 +87,18 @@ class NocoDBClient:
         """
         return self._cache_ttl_policies.get(cache_key, self._default_cache_ttl)
 
-    def _get(self, path: str) -> dict:
+    def _get(self, path: str, **kwargs) -> dict:
         url = f"{self._base_url}{path}"
         headers = {"xc-token": self._xc_token}
-        response = requests.get(url, headers=headers)
+        if 'headers' in kwargs:
+            headers.update(kwargs['headers'])
+            del kwargs['headers']
+        
+        response = requests.get(url, headers=headers, **kwargs)
         response.raise_for_status()
         return response.json()
     
-    def _get_nocodb_info(self):
+    def _get_nocodb_info(self, force_refresh: bool = False) -> dict:
         """
         Get NocoDB instance information from /api/v1/db/meta/nocodb/info
         
@@ -98,7 +108,24 @@ class NocoDBClient:
         Raises:
             requests.exceptions.RequestException: If the request fails
         """
-        return self._get("/api/v1/db/meta/nocodb/info")
+        with self._cache_lock:
+            current_time = time.time()
+
+            if (not force_refresh and 
+                self._nocodb_info_cache is not None and 
+                current_time - self._nocodb_info_timestamp < self._get_cache_ttl("nocodb_info")):
+                return self._nocodb_info_cache
+
+            self._nocodb_info_cache = self._get("/api/v1/db/meta/nocodb/info")
+            self._nocodb_info_timestamp = current_time
+
+            return self._get("/api/v1/db/meta/nocodb/info")
+
+    def clear_nocodb_info_cache(self):
+        """Clear cached server information"""
+        with self._cache_lock:
+            self._nocodb_info_cache = None
+            self._nocodb_info_timestamp = 0
 
     def server_version(self) -> str:
         """
@@ -110,15 +137,30 @@ class NocoDBClient:
         info = self._get_nocodb_info()
         return info.get("version", "Unknown")
 
-    def _get_me(self) -> dict:
+    def _get_me(self, force_refresh: bool = False) -> dict:
         """
         Get current user information
         
         Returns:
             dict: User information
         """
-        return self._get("/api/v1/auth/user/me")
+        with self._cache_lock:
+            current_time = time.time()
+
+            if(not force_refresh and self._user_me_cache is not None and
+               current_time - self._user_me_timestamp < self._get_cache_ttl("user_me")):
+                return self._user_me_cache
+            
+            self._user_me_cache = self._get("/api/v1/auth/user/me")
+            self._user_me_timestamp = current_time
+            return self._user_me_cache
     
+    def clear_user_me_cache(self):
+        """Clear cached user information"""
+        with self._cache_lock:
+            self._user_me_cache = None
+            self._user_me_timestamp = 0
+
     def user_id(self) -> str:
         """
         Get current user ID
