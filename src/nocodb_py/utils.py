@@ -6,7 +6,7 @@ This module provides utility functions for handling NocoDB data
 """
 
 from datetime import datetime, timezone
-from typing import List, Dict, Callable, Any, Optional, Union
+from typing import Optional
 
 # 支持的时间格式常量
 UTC_DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'

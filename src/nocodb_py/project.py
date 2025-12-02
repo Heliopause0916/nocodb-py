@@ -20,17 +20,18 @@ class NocoDBProject:
         _project_id (str): The unique project identifier
     """
     
-    def __init__(self, client: NocoDBClient, project_id: str):
+    def __init__(self, client: NocoDBClient, project_id: str, xc_token: str):
         """
         Initialize the NocoDBProject with client and project ID
         
         Args:
             client (NocoDBClient): The NocoDB client instance
             project_id (str): The unique project identifier
+            xc_token (str): The NocoDB token for authentication
         """
         self._client = client
         self._project_id = project_id
-        
+        self._xc_token = xc_token
         # Project-specific cache
         self._project_info_cache = None
         self._project_info_timestamp = 0
@@ -98,3 +99,22 @@ class NocoDBProject:
         """
         return self._client
     
+    # def _get(self, path: str, **kwargs) -> dict:
+    #     url = f"{self._client.get_base_url()}{path}"
+    #     headers = {"xc-token": self._xc_token}
+    #     if 'headers' in kwargs:
+    #         headers.update(kwargs['headers'])
+    #         del kwargs['headers']
+        
+    #     response = requests.get(url, headers=headers, **kwargs)
+    #     response.raise_for_status()
+    #     return response.json()
+    
+    # def _get_info(self) -> dict:
+    #     """
+    #     Get the information of the NocoDB instance
+        
+    #     Returns:
+    #         Dict[str, Any]: The information of the NocoDB instance
+    #     """
+    #     return self._client.get_info()

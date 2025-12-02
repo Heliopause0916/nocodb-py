@@ -7,12 +7,13 @@ This module provides a client class to interact with NocoDB API
 
 import time
 import threading
-from typing import Dict, Callable, Any, Optional, Union
-import requests
-
+from typing import Dict, Any, Optional
 from typing import TYPE_CHECKING
+import requests
+from .utils import parse_utc_datetime
 if TYPE_CHECKING:
     from .project import NocoDBProject
+
 
 
 class NocoDBClient:
@@ -23,7 +24,7 @@ class NocoDBClient:
         _base_url (str): The base URL of the NocoDB instance
         _xc_token (str): The authentication token for NocoDB API
     """
-    
+
     _DEFAULT_CACHE_TTL = 300
     _DEFAULT_CACHE_TTL_POLICIES = {
         "nocodb_info": 3600,  # 服务器信息: 1小时
@@ -34,6 +35,7 @@ class NocoDBClient:
     def __init__(self, base_url: str, xc_token: str,
                 cache_ttl: Optional[int] = None,
                 cache_ttl_policies: Optional[Dict[str, int]] = None,
+                timeout = 10
                 ):
         """
         Initialize the NocoDBClient with base_url and xc_token
@@ -46,6 +48,7 @@ class NocoDBClient:
         """
         self._base_url = base_url
         self._xc_token = xc_token
+        self._timeout = timeout
 
         self._default_cache_ttl = cache_ttl or self._DEFAULT_CACHE_TTL
         if self._default_cache_ttl <= 0:
@@ -56,7 +59,6 @@ class NocoDBClient:
         for key, ttl in self._cache_ttl_policies.items():
             if not isinstance(ttl, int) or ttl <= 0:
                 raise ValueError(f"Cache ttl for '{key}' must be positive integer")
-        
         self._nocodb_info_cache = None
         self._nocodb_info_timestamp = 0
         self._user_me_cache = None
@@ -65,7 +67,7 @@ class NocoDBClient:
         self._projects_timeout = 0
 
         self._cache_lock = threading.RLock()
-        
+
     def __str__(self) -> str:
         """
         String representation of the NocoDBClient
@@ -74,7 +76,7 @@ class NocoDBClient:
             str: String representation of the client
         """
         return f"NocoDBClient(base_url='{self._base_url}', xc_token='***')"
-    
+
     def __repr__(self) -> str:
         """
         Official string representation of the NocoDBClient
@@ -83,13 +85,13 @@ class NocoDBClient:
             str: Official representation of the client
         """
         return self.__str__()
-    
+
     def __eq__(self, other) -> bool:
         if not isinstance(other, NocoDBClient):
             return NotImplemented
         return (self._base_url == other._base_url and 
                 self._xc_token == other._xc_token)
-    
+
     def __hash__(self) -> int:
         """
         Hash implementation for NocoDBClient.
@@ -99,7 +101,7 @@ class NocoDBClient:
         """
         # 只对用于相等性比较的不可变属性进行哈希
         return hash((self._base_url, self._xc_token))
-    
+
     def get_base_url(self) -> str:
         """
         Get the base URL of the NocoDB instance
@@ -108,7 +110,7 @@ class NocoDBClient:
             str: The base URL
         """
         return self._base_url
-    
+
     def _get_cache_ttl(self, cache_key: str) -> int:
         """
         Get cache TTL for a specific cache key
@@ -128,11 +130,10 @@ class NocoDBClient:
         if 'headers' in kwargs:
             headers.update(kwargs['headers'])
             del kwargs['headers']
-        
-        response = requests.get(url, headers=headers, **kwargs)
+        response = requests.get(url, headers=headers, timeout=self._timeout, **kwargs)
         response.raise_for_status()
         return response.json()
-    
+
     def _get_nocodb_info(self, force_refresh: bool = False) -> dict:
         """
         Get NocoDB instance information from /api/v1/db/meta/nocodb/info
@@ -185,11 +186,11 @@ class NocoDBClient:
             if(not force_refresh and self._user_me_cache is not None and
                current_time - self._user_me_timestamp < self._get_cache_ttl("user_me")):
                 return self._user_me_cache
-            
+
             self._user_me_cache = self._get("/api/v1/auth/user/me")
             self._user_me_timestamp = current_time
             return self._user_me_cache
-    
+
     def clear_user_me_cache(self):
         """Clear cached user information"""
         with self._cache_lock:
@@ -205,7 +206,7 @@ class NocoDBClient:
         """
         me = self._get_me(force_refresh=force_refresh)
         return me.get("id", "Unknown") if me else "Unknown"
-    
+
     def user_email(self, force_refresh: bool = False) -> str:
         """
         Get current user email
@@ -215,7 +216,7 @@ class NocoDBClient:
         """
         me = self._get_me(force_refresh=force_refresh)
         return me.get("email", "Unknown") if me else "Unknown"
-    
+
     def user_display_name(self, force_refresh: bool = False) -> str:
         """
         Get current user display name
@@ -225,7 +226,7 @@ class NocoDBClient:
         """
         me = self._get_me(force_refresh=force_refresh)
         return me.get("display_name", "Unknown") if me else "Unknown"
-    
+
     def _get_projects_data(self, force_refresh: bool = False) -> dict:
         """
         Get projects data
@@ -239,12 +240,13 @@ class NocoDBClient:
             if(not force_refresh and self._projects_cache is not None and
                current_time - self._projects_timeout < self._get_cache_ttl("projects")):
                 return self._projects_cache
-            
+
             self._projects_cache = self._get("/api/v1/db/meta/projects")
             self._projects_timeout = current_time
             return self._projects_cache
 
-    def list_projects(self, force_refresh: bool = False, full_info: bool = False, convert_time: bool = False) -> list:
+    def list_projects(self, force_refresh: bool = False, 
+                      full_info: bool = False, convert_time: bool = False) -> list:
         """
         List projects
         
@@ -254,8 +256,7 @@ class NocoDBClient:
         projects_data = self._get_projects_data(force_refresh= force_refresh)
         projects_list: list[dict[str, Any]] = projects_data.get("list", [])
 
-        if(convert_time):
-            from .utils import parse_utc_datetime
+        if convert_time:
             projects_list =[
                 {
                     **project,
@@ -265,7 +266,7 @@ class NocoDBClient:
                 for project in projects_list
             ]
 
-        if(not full_info):
+        if not full_info:
             projects_list = [
                 {
                     "id": project.get("id", ""),
@@ -274,11 +275,11 @@ class NocoDBClient:
                     "description": project.get("description", None),
                     "created_at": project.get("created_at", None),
                     "updated_at": project.get("updated_at", None),
-                } 
+                }
                 for project in projects_list
                 ]
         return projects_list
-    
+
     def get_project(self, project_id: str) -> 'NocoDBProject':
         """
         Get a NocoDBProject instance for the specified project ID
@@ -289,8 +290,10 @@ class NocoDBClient:
         Returns:
             NocoDBProject: The project instance
         """
+        # pylint: disable=import-outside-toplevel
+        # Reason: Avoid circular imports
         from .project import NocoDBProject
-        return NocoDBProject(self, project_id)
+        return NocoDBProject(self, project_id, xc_token=self._xc_token)
 
     def create_project_instance(self, project_id: str) -> 'NocoDBProject':
         """
