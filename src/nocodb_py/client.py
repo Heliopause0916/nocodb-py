@@ -280,7 +280,7 @@ class NocoDBClient:
                 ]
         return projects_list
 
-    def get_project(self, project_id: str) -> 'NocoDBProject':
+    def get_project(self, project_id: str, **kwargs) -> 'NocoDBProject':
         """
         Get a NocoDBProject instance for the specified project ID
         
@@ -293,7 +293,7 @@ class NocoDBClient:
         # pylint: disable=import-outside-toplevel
         # Reason: Avoid circular imports
         from .project import NocoDBProject
-        return NocoDBProject(self, project_id, xc_token=self._xc_token)
+        return NocoDBProject(self, project_id, xc_token=self._xc_token, **kwargs)
 
     def create_project_instance(self, project_id: str) -> 'NocoDBProject':
         """
