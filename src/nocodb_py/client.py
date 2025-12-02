@@ -134,7 +134,7 @@ class NocoDBClient:
         response.raise_for_status()
         return response.json()
 
-    def _get_nocodb_info(self, force_refresh: bool = False) -> dict:
+    def get_nocodb_full_info(self, force_refresh: bool = False) -> dict:
         """
         Get NocoDB instance information from /api/v1/db/meta/nocodb/info
         
@@ -170,10 +170,10 @@ class NocoDBClient:
         Returns:
             str: Server version string
         """
-        info = self._get_nocodb_info(force_refresh=force_refresh)
+        info = self.get_nocodb_full_info(force_refresh=force_refresh)
         return info.get("version", "Unknown")
 
-    def _get_me(self, force_refresh: bool = False) -> dict:
+    def get_me_full_info(self, force_refresh: bool = False) -> dict:
         """
         Get current user information
         
@@ -204,7 +204,7 @@ class NocoDBClient:
         Returns:
             str: User ID
         """
-        me = self._get_me(force_refresh=force_refresh)
+        me = self.get_me_full_info(force_refresh=force_refresh)
         return me.get("id", "Unknown") if me else "Unknown"
 
     def user_email(self, force_refresh: bool = False) -> str:
@@ -214,7 +214,7 @@ class NocoDBClient:
         Returns:
             str: User email
         """
-        me = self._get_me(force_refresh=force_refresh)
+        me = self.get_me_full_info(force_refresh=force_refresh)
         return me.get("email", "Unknown") if me else "Unknown"
 
     def user_display_name(self, force_refresh: bool = False) -> str:
@@ -224,10 +224,10 @@ class NocoDBClient:
         Returns:
             str: User display name
         """
-        me = self._get_me(force_refresh=force_refresh)
+        me = self.get_me_full_info(force_refresh=force_refresh)
         return me.get("display_name", "Unknown") if me else "Unknown"
 
-    def _get_projects_data(self, force_refresh: bool = False) -> dict:
+    def get_projects_full_info(self, force_refresh: bool = False) -> dict:
         """
         Get projects data
         
@@ -253,7 +253,7 @@ class NocoDBClient:
         Returns:
             dict: Projects list
         """
-        projects_data = self._get_projects_data(force_refresh= force_refresh)
+        projects_data = self.get_projects_full_info(force_refresh= force_refresh)
         projects_list: list[dict[str, Any]] = projects_data.get("list", [])
 
         if convert_time:
