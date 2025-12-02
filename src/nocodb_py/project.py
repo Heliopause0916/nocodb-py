@@ -12,6 +12,7 @@ import requests
 from .client import NocoDBClient
 # from .utils import parse_utc_datetime
 
+# pylint: disable=too-many-instance-attributes
 class NocoDBProject:
     """
     A class representing a NocoDB project with project-specific operations

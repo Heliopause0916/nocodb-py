@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from .project import NocoDBProject
 
 
-
+# pylint: disable=too-many-instance-attributes
 class NocoDBClient:
     """
     A client class for interacting with NocoDB API
