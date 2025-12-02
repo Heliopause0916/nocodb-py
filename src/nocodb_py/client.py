@@ -1,4 +1,6 @@
 """
+Filename: src/nocodb_py/client.py
+
 NocoDB Client for Python
 This module provides a client class to interact with NocoDB API
 """
@@ -7,6 +9,7 @@ import time
 import threading
 from typing import Dict, Callable, Any, Optional, Union
 import requests
+
 
 class NocoDBClient:
     """
@@ -20,7 +23,8 @@ class NocoDBClient:
     _DEFAULT_CACHE_TTL = 300
     _DEFAULT_CACHE_TTL_POLICIES = {
         "nocodb_info": 3600,  # 服务器信息: 1小时
-        "user_me": 300         # 用户信息: 5分钟
+        "user_me": 300,       # 用户信息: 5分钟
+        "projects": 300,     # 项目列表: 5分钟
     }
 
     def __init__(self, base_url: str, xc_token: str,
@@ -53,6 +57,8 @@ class NocoDBClient:
         self._nocodb_info_timestamp = 0
         self._user_me_cache = None
         self._user_me_timestamp = 0
+        self._projects_cache = None
+        self._projects_timeout = 0
 
         self._cache_lock = threading.RLock()
         
@@ -73,6 +79,15 @@ class NocoDBClient:
             str: Official representation of the client
         """
         return self.__str__()
+    
+    def get_base_url(self) -> str:
+        """
+        Get the base URL of the NocoDB instance
+        
+        Returns:
+            str: The base URL
+        """
+        return self._base_url
     
     def _get_cache_ttl(self, cache_key: str) -> int:
         """
@@ -190,3 +205,58 @@ class NocoDBClient:
         """
         me = self._get_me(force_refresh=force_refresh)
         return me.get("display_name", "Unknown") if me else "Unknown"
+    
+    def _get_projects_data(self, force_refresh: bool = False) -> dict:
+        """
+        Get projects data
+        
+        Returns:
+            dict: Projects data
+        """
+        with self._cache_lock:
+            current_time = time.time()
+
+            if(not force_refresh and self._projects_cache is not None and
+               current_time - self._projects_timeout < self._get_cache_ttl("projects")):
+                return self._projects_cache
+            
+            self._projects_cache = self._get("/api/v1/db/meta/projects")
+            self._projects_timeout = current_time
+            return self._projects_cache
+
+    def list_projects(self, force_refresh: bool = False, full_info: bool = False, convert_time: bool = False) -> list:
+        """
+        List projects
+        
+        Returns:
+            dict: Projects list
+        """
+        projects_data = self._get_projects_data(force_refresh= force_refresh)
+        projects_list: list[dict[str, Any]] = projects_data.get("list", [])
+
+        if(convert_time):
+            from .utils import parse_utc_datetime
+            projects_list =[
+                {
+                    **project,
+                    'created_at': parse_utc_datetime(project.get('created_at', None)),
+                    'updated_at': parse_utc_datetime(project.get('updated_at', None))
+                }
+                for project in projects_list
+            ]
+
+        if(not full_info):
+            projects_list = [
+                {
+                    "id": project.get("id", ""),
+                    "title": project.get("title", ""),
+                    "prefix": project.get("prefix", ""),
+                    "description": project.get("description", None),
+                    "created_at": project.get("created_at", None),
+                    "updated_at": project.get("updated_at", None),
+                } 
+                for project in projects_list
+                ]
+
+
+        return projects_list

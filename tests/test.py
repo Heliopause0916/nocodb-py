@@ -1,5 +1,6 @@
 import os
 import json
+import time
 from dotenv import load_dotenv
 load_dotenv(dotenv_path="tests/.env", override=True)
 
@@ -10,7 +11,9 @@ from nocodb_py import NocoDBClient
 
 client = NocoDBClient(base_url=base_url, xc_token=api_key)
 
-print(client.server_version())
-print(client.user_id())
-print(client.user_email())
-print(client.user_display_name())
+start_time = time.time()
+
+print(client.list_projects(convert_time=True))
+
+stop_time = time.time()
+print(f"Time taken: {stop_time - start_time}")
