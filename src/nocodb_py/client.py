@@ -10,6 +10,10 @@ import threading
 from typing import Dict, Callable, Any, Optional, Union
 import requests
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .project import NocoDBProject
+
 
 class NocoDBClient:
     """
@@ -273,6 +277,30 @@ class NocoDBClient:
                 } 
                 for project in projects_list
                 ]
-
-
         return projects_list
+    
+    def get_project(self, project_id: str) -> 'NocoDBProject':
+        """
+        Get a NocoDBProject instance for the specified project ID
+        
+        Args:
+            project_id (str): The project ID
+            
+        Returns:
+            NocoDBProject: The project instance
+        """
+        from .project import NocoDBProject
+        return NocoDBProject(self, project_id)
+
+    def create_project_instance(self, project_id: str) -> 'NocoDBProject':
+        """
+        Create a NocoDBProject instance for the specified project ID
+        (Alias for get_project)
+        
+        Args:
+            project_id (str): The project ID
+            
+        Returns:
+            NocoDBProject: The project instance
+        """
+        return self.get_project(project_id)

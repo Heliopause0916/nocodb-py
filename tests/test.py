@@ -13,7 +13,13 @@ client = NocoDBClient(base_url=base_url, xc_token=api_key)
 
 start_time = time.time()
 
-print(client.list_projects(convert_time=True))
-
+projects = client.list_projects()
+print(json.dumps(projects, indent=2, ensure_ascii=False))
+for tmp_proj in projects:
+    if(tmp_proj["title"] == "Getting Started"):
+        proj_id = tmp_proj["id"]
 stop_time = time.time()
 print(f"Time taken: {stop_time - start_time}")
+
+project = client.get_project(proj_id)
+print(project)
