@@ -80,6 +80,22 @@ class NocoDBClient:
         """
         return self.__str__()
     
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, NocoDBClient):
+            return NotImplemented
+        return (self._base_url == other._base_url and 
+                self._xc_token == other._xc_token)
+    
+    def __hash__(self) -> int:
+        """
+        Hash implementation for NocoDBClient.
+        
+        Returns:
+            int: Hash value based on immutable attributes
+        """
+        # 只对用于相等性比较的不可变属性进行哈希
+        return hash((self._base_url, self._xc_token))
+    
     def get_base_url(self) -> str:
         """
         Get the base URL of the NocoDB instance
