@@ -22,7 +22,7 @@ class NocoDBProject:
         _project_id (str): The unique project identifier
     """
 
-    def __init__(self, client: NocoDBClient, project_id: str, xc_token: str, timeout: int = 30):
+    def __init__(self, client: NocoDBClient, project_id: str, xc_token: str, timeout: int = 30, cache_ttl: Optional[int] = 300):
         """
         Initialize the NocoDBProject with client and project ID
         
@@ -35,6 +35,7 @@ class NocoDBProject:
         self._project_id = project_id
         self._xc_token = xc_token
         self._timeout = timeout
+        self._cache_ttl = cache_ttl
         # Project-specific cache
         self._project_info_cache = None
         self._project_info_timestamp = 0
@@ -113,6 +114,28 @@ class NocoDBProject:
         response.raise_for_status()
         return response.json()
     
+    def get_full_info_v1(self, force_refresh: bool = False) -> dict:
+        """
+        Get the full information of the NocoDB instance
+        
+        Returns:
+            Dict[str, Any]: The information of the NocoDB instance
+        """
+        with self._cache_lock:
+            current_time = time.time()
+            cache_ttl = self._cache_ttl
+            if(not force_refresh and
+               self._project_info_cache is not None and
+               (cache_ttl is None or current_time - self._project_info_timestamp < cache_ttl)
+               ):
+                return self._project_info_cache
+            
+            self._project_info_cache = self._get(f"/api/v1/db/meta/projects/{self._project_id}")
+            self._project_info_timestamp = current_time
+            return self._project_info_cache
+    
+    
+
     # def _get_info(self) -> dict:
     #     """
     #     Get the information of the NocoDB instance
