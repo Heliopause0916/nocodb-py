@@ -127,14 +127,14 @@ class NocoDBClient:
             self._nocodb_info_cache = None
             self._nocodb_info_timestamp = 0
 
-    def server_version(self) -> str:
+    def server_version(self, force_refresh: bool = False) -> str:
         """
         Get NocoDB server version
         
         Returns:
             str: Server version string
         """
-        info = self._get_nocodb_info()
+        info = self._get_nocodb_info(force_refresh=force_refresh)
         return info.get("version", "Unknown")
 
     def _get_me(self, force_refresh: bool = False) -> dict:
@@ -161,32 +161,32 @@ class NocoDBClient:
             self._user_me_cache = None
             self._user_me_timestamp = 0
 
-    def user_id(self) -> str:
+    def user_id(self, force_refresh: bool = False) -> str:
         """
         Get current user ID
         
         Returns:
             str: User ID
         """
-        me = self._get_me()
+        me = self._get_me(force_refresh=force_refresh)
         return me.get("id", "Unknown") if me else "Unknown"
     
-    def user_email(self) -> str:
+    def user_email(self, force_refresh: bool = False) -> str:
         """
         Get current user email
         
         Returns:
             str: User email
         """
-        me = self._get_me()
+        me = self._get_me(force_refresh=force_refresh)
         return me.get("email", "Unknown") if me else "Unknown"
     
-    def user_display_name(self) -> str:
+    def user_display_name(self, force_refresh: bool = False) -> str:
         """
         Get current user display name
         
         Returns:
             str: User display name
         """
-        me = self._get_me()
+        me = self._get_me(force_refresh=force_refresh)
         return me.get("display_name", "Unknown") if me else "Unknown"
