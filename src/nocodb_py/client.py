@@ -28,7 +28,7 @@ class NocoDBClient:
     _DEFAULT_CACHE_TTL = 300
     CACHE_FOREVER = None
 
-    def __init__(self, base_url: str, xc_token: str,
+    def __init__(self, base_url: str, xc_token: str, workspace_id: Optional[str] = None,
                 cache_ttl: Optional[int] = _DEFAULT_CACHE_TTL,
                 timeout = 10
                 ):
