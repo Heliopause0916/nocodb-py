@@ -10,7 +10,8 @@ import threading
 from typing import Any, Optional
 from typing import TYPE_CHECKING
 import requests
-from .utils import parse_utc_datetime
+from .utils import parse_utc_datetime, count_of_nocodb_data
+from .variable import max_workspace_num, max_project_num
 if TYPE_CHECKING:
     from .project import NocoDBProject
     from .workspace import NocoDBWorkspace
@@ -126,6 +127,19 @@ class NocoDBClient:
             self._workspaces_cache = self._get("/api/v1/workspaces")
             self._workspaces_timeout = current_time
             return self._workspaces_cache
+
+    def count_workspaces(self, force_refresh: bool = False) -> Optional[int]:
+        """
+        Count all workspaces
+        
+        Returns:
+            int: The number of workspaces
+        """
+        workspaces = self.get_workspaces_full_info(force_refresh=force_refresh)
+        if workspaces is None:
+            return None
+        
+        return count_of_nocodb_data(workspaces)
 
     def list_workspaces(self, force_refresh: bool = False,
                         full_info: bool = False) -> Optional[list]:
@@ -310,7 +324,7 @@ class NocoDBClient:
         me = self.get_me_full_info(force_refresh=force_refresh)
         return me.get("display_name", "Unknown") if me else "Unknown"
 
-    def get_projects_full_info_v2(self, force_refresh: bool = False) -> dict:
+    def get_projects_full_info_backend(self, force_refresh: bool = False) -> dict:
         """
         Get projects data
         
@@ -337,16 +351,9 @@ class NocoDBClient:
         Returns:
             dict: Projects data
         """
-        return self.get_projects_full_info_v2(force_refresh=force_refresh)
-    
-    def get_bases_full_info(self, force_refresh: bool = False) -> dict:
-        """
-        Get bases data
-        
-        Returns:
-            dict: Bases data
-        """
-        return self.get_projects_full_info(force_refresh=force_refresh)
+        return self.get_projects_full_info_backend(force_refresh=force_refresh)
+
+    get_bases_full_info = get_projects_full_info
 
     def list_projects(self, force_refresh: bool = False, 
                       full_info: bool = False, convert_time: bool = False) -> list:
@@ -381,15 +388,24 @@ class NocoDBClient:
                 ]
         return projects_list
 
-    def list_bases(self, force_refresh: bool = False,
-                      full_info: bool = False, convert_time: bool = False) -> list:
+    list_bases = list_projects
+
+    def count_projects(self, force_refresh: bool = False) -> Optional[int]:
         """
-        List all projects in the workspace
+        Count the number of projects in the database
         
-        Alias of list_projects
+        Args:
+            force_refresh (bool): Whether to force a refresh of the project list
+            
+        Returns:
+            int: The number of projects
         """
-        return self.list_projects(force_refresh=force_refresh, full_info=full_info, 
-                            convert_time=convert_time)
+        projects = self.get_projects_full_info(force_refresh=force_refresh)
+        if projects is None:
+            return None
+        return count_of_nocodb_data(projects)
+
+    count_bases = count_projects
 
     def get_project(self, project_id: str, **kwargs) -> 'NocoDBProject':
         """
@@ -408,6 +424,8 @@ class NocoDBClient:
         # Reason: Avoid circular imports
         from .project import NocoDBProject
         return NocoDBProject(self, project_id, xc_token=self._xc_token, **kwargs)
+
+    get_base = get_project
 
     def get_meta_v2_prefix(self) -> str:
         """

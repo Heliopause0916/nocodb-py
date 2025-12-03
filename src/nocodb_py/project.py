@@ -114,7 +114,7 @@ class NocoDBProject:
         response.raise_for_status()
         return response.json()
 
-    def get_full_info_v1(self, force_refresh: bool = False) -> dict:
+    def get_full_info(self, force_refresh: bool = False) -> dict:
         """
         Get the full information of the NocoDB instance
         
@@ -130,27 +130,9 @@ class NocoDBProject:
                ):
                 return self._project_info_cache
 
-            self._project_info_cache = self._get(f"/api/v1/db/meta/projects/{self._project_id}")
-            self._project_info_timestamp = current_time
-            return self._project_info_cache
-
-    def get_full_info_v2(self, force_refresh: bool = False) -> dict:
-        """
-        Get the full information of the NocoDB instance
-        
-        Returns:
-            Dict[str, Any]: The information of the NocoDB instance
-        """
-        with self._cache_lock:
-            current_time = time.time()
-            cache_ttl = self._cache_ttl
-            if(not force_refresh and
-               self._project_info_cache is not None and
-               (cache_ttl is None or current_time - self._project_info_timestamp < cache_ttl)
-               ):
-                return self._project_info_cache
-
-            self._project_info_cache = self._get(f"/api/v2/meta/bases/{self._project_id}")
+            self._project_info_cache = self._get(
+                f"{self._client.get_meta_v2_prefix()}/bases/{self._project_id}"
+                )
             self._project_info_timestamp = current_time
             return self._project_info_cache
 
@@ -175,6 +157,13 @@ class NocoDBProject:
             self._tables_timestamp = current_time
             return self._tables_cache
 
+    def get_meta_v2_prefix(self) -> str:
+        """
+        Get the meta v2 prefix for the project
+        Returns:
+            str: The meta v2 prefix for the project
+        """
+        return f"/api/v2/meta/bases/{self._project_id}"
         
 
     # def _get_info(self) -> dict:

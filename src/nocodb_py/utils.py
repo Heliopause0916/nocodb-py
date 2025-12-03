@@ -34,4 +34,20 @@ def parse_utc_datetime(value: Optional[str], format_str: str = UTC_DATETIME_FORM
     except ValueError:
         return EPOCH_ZERO
 
-
+def count_of_nocodb_data(nocodb_data: Optional[dict]) -> Optional[int]:
+    """
+    计算nocodb数据的条数
+    
+    Args:
+        nocodb_data (list): nocodb数据列表
+        
+    Returns:
+        int: 数据条数，如果数据为空则返回None
+    """
+    if not nocodb_data:
+        return None
+    page_info: dict = nocodb_data.get("pageInfo", {})
+    if isinstance(page_info, dict) is False:
+        return None
+    total_rows = page_info.get("totalRows", None)
+    return total_rows
