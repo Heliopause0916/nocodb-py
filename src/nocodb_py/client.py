@@ -7,7 +7,7 @@ This module provides a client class to interact with NocoDB API
 
 import time
 import threading
-from typing import Dict, Any, Optional
+from typing import Any, Optional
 from typing import TYPE_CHECKING
 import requests
 from .utils import parse_utc_datetime
@@ -97,6 +97,7 @@ class NocoDBClient:
         """
         return self._base_url
 
+    # pylint: disable=unused-argument
     def _get_cache_ttl(self, cache_key: Optional[str] = None) -> Optional[int]:
         """
         Get cache TTL for a specific cache key
@@ -159,6 +160,16 @@ class NocoDBClient:
         """
         info = self.get_nocodb_full_info(force_refresh=force_refresh)
         return info.get("version", "Unknown")
+
+    def is_cloud(self, force_refresh: bool = False) -> bool:
+        """
+        Check if server is NocoDB Cloud
+        
+        Returns:
+            bool: True if server is NocoDB Cloud
+        """
+        info = self.get_nocodb_full_info(force_refresh=force_refresh)
+        return info.get("isCloud", False)
 
     def get_me_full_info(self, force_refresh: bool = False) -> dict:
         """
@@ -233,7 +244,7 @@ class NocoDBClient:
             self._projects_cache = self._get("/api/v1/db/meta/projects")
             self._projects_timeout = current_time
             return self._projects_cache
-    
+
     def get_projects_full_info_v2(self, force_refresh: bool = False) -> dict:
         """
         Get projects data
@@ -260,7 +271,7 @@ class NocoDBClient:
         Returns:
             dict: Projects data
         """
-        return self.get_projects_full_info_v2(force_refresh=force_refresh)
+        return self.get_projects_full_info_v1(force_refresh=force_refresh)
 
     def list_projects(self, force_refresh: bool = False, 
                       full_info: bool = False, convert_time: bool = False) -> list:
@@ -288,8 +299,6 @@ class NocoDBClient:
                 {
                     "id": project.get("id", ""),
                     "title": project.get("title", ""),
-                    "prefix": project.get("prefix", ""),
-                    "description": project.get("description", None),
                     "created_at": project.get("created_at", None),
                     "updated_at": project.get("updated_at", None),
                 }

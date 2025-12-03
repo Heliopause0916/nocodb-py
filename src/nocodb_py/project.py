@@ -109,11 +109,11 @@ class NocoDBProject:
         if 'headers' in kwargs:
             headers.update(kwargs['headers'])
             del kwargs['headers']
-        
+
         response = requests.get(url, headers=headers, timeout=self._timeout, **kwargs)
         response.raise_for_status()
         return response.json()
-    
+
     def get_full_info_v1(self, force_refresh: bool = False) -> dict:
         """
         Get the full information of the NocoDB instance
@@ -129,12 +129,53 @@ class NocoDBProject:
                (cache_ttl is None or current_time - self._project_info_timestamp < cache_ttl)
                ):
                 return self._project_info_cache
-            
+
             self._project_info_cache = self._get(f"/api/v1/db/meta/projects/{self._project_id}")
             self._project_info_timestamp = current_time
             return self._project_info_cache
-    
-    
+
+    def get_full_info_v2(self, force_refresh: bool = False) -> dict:
+        """
+        Get the full information of the NocoDB instance
+        
+        Returns:
+            Dict[str, Any]: The information of the NocoDB instance
+        """
+        with self._cache_lock:
+            current_time = time.time()
+            cache_ttl = self._cache_ttl
+            if(not force_refresh and
+               self._project_info_cache is not None and
+               (cache_ttl is None or current_time - self._project_info_timestamp < cache_ttl)
+               ):
+                return self._project_info_cache
+
+            self._project_info_cache = self._get(f"/api/v2/meta/bases/{self._project_id}")
+            self._project_info_timestamp = current_time
+            return self._project_info_cache
+
+    def get_tables_full_info(self, force_refresh: bool = False, include_m2m: bool = False) -> dict:
+        """
+        Get the full information of all tables in the project
+        
+        Returns:
+            Dict[str, Any]: The information of all tables in the project
+        """
+        with self._cache_lock:
+            current_time = time.time()
+            cache_ttl = self._cache_ttl
+            if(not force_refresh and
+              self._tables_cache is not None and
+              (cache_ttl is None or current_time - self._tables_timestamp < cache_ttl)
+              ):
+                return self._tables_cache
+
+            self._tables_cache = self._get(f"/api/v1/db/meta/projects/{self._project_id}/tables",
+                                           params={"includeM2M": include_m2m})
+            self._tables_timestamp = current_time
+            return self._tables_cache
+
+        
 
     # def _get_info(self) -> dict:
     #     """
