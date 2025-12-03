@@ -1,193 +1,193 @@
 # NocoDB Python SDK
 
-Python SDK for NocoDB - 一个开源的智能电子表格和无代码平台，用于构建数据库应用程序。
+Python SDK for NocoDB - an open-source intelligent spreadsheet and no-code platform for building database applications.
 
-> ⚠️ **注意**: 此SDK处于早期开发阶段，API可能会发生重大变化。
+> ⚠️ **Note**: This SDK is in early development stage, and the API may undergo significant changes.
 
-## 功能特性
+## Features
 
-- 与NocoDB API交互的Python客户端
-- 支持工作区、项目和表格操作
-- 内置缓存机制提高性能
-- 类型提示支持
+- Python client for interacting with the NocoDB API
+- Support for workspace, project, and table operations
+- Built-in caching mechanism for improved performance
+- Type hint support
 
-## 安装
+## Installation
 
-### 要求
+### Requirements
 
-- Python 3.9 或更高版本
+- Python 3.9 or higher
 
-### 安装方式
+### Installation Method
 
 ```bash
 pip install nocodb-py
 ```
 
-或者从源码安装：
+Or install from source:
 
 ```bash
 pip install git+https://github.com/your-username/nocodb-py.git
 ```
 
-## 快速开始
+## Quick Start
 
-### 初始化客户端
+### Initialize Client
 
 ```python
 from nocodb_py import NocoDBClient
 
-# 自托管实例
+# Self-hosted instance
 client = NocoDBClient(
     base_url="http://localhost:8080",
     xc_token="your-api-token"
 )
 
-# NocoDB云实例
+# NocoDB cloud instance
 cloud_client = NocoDBClient(
     base_url="https://app.nocodb.com",
     xc_token="your-cloud-api-token"
 )
 ```
 
-### 列出工作区
+### List Workspaces
 
 ```python
-# 仅适用于云实例
+# Only for cloud instances
 workspaces = cloud_client.list_workspaces()
 print(workspaces)
 ```
 
-### 获取工作区
+### Get Workspace
 
 ```python
-# 仅适用于云实例
+# Only for cloud instances
 workspace = cloud_client.get_workspace("workspace-id")
 ```
 
-### 列出项目
+### List Projects
 
 ```python
-# 自托管实例
+# Self-hosted instance
 projects = client.list_projects()
 
-# 云实例中的特定工作区
+# Specific workspace in cloud instance
 projects = workspace.list_projects()
 ```
 
-### 获取项目
+### Get Project
 
 ```python
 project = client.get_project("project-id")
-# 或者从工作区获取
+# Or get from workspace
 project = workspace.get_project("project-id")
 ```
 
-### 表格操作
+### Table Operations
 
 ```python
-# 获取项目中的表格
+# Get tables in project
 tables = project.list_tables()
 
-# 获取特定表格
+# Get specific table
 table = project.get_table("table-id")
 
-# 获取表格列信息
+# Get table column information
 columns = table.list_columns()
 ```
 
-## API参考
+## API Reference
 
 ### NocoDBClient
 
-主要客户端类，用于与NocoDB实例交互。
+Main client class for interacting with NocoDB instances.
 
-#### 构造函数
+#### Constructor
 
 ```python
 NocoDBClient(base_url: str, xc_token: str, cache_ttl: Optional[int] = 300, timeout = 10)
 ```
 
-参数:
-- `base_url`: NocoDB实例的基础URL
-- `xc_token`: API认证令牌
-- `cache_ttl`: 缓存过期时间（秒），None表示永不过期
-- `timeout`: 请求超时时间（秒）
+Parameters:
+- `base_url`: Base URL of the NocoDB instance
+- `xc_token`: API authentication token
+- `cache_ttl`: Cache expiration time (seconds), None means never expires
+- `timeout`: Request timeout time (seconds)
 
-#### 主要方法
+#### Main Methods
 
-- `list_workspaces()`: 列出所有工作区（仅限云实例）
-- `get_workspace(workspace_id: str)`: 获取特定工作区（仅限云实例）
-- `list_projects()`: 列出所有项目
-- `get_project(project_id: str)`: 获取特定项目
+- `list_workspaces()`: List all workspaces (cloud instances only)
+- `get_workspace(workspace_id: str)`: Get specific workspace (cloud instances only)
+- `list_projects()`: List all projects
+- `get_project(project_id: str)`: Get specific project
 
 ### NocoDBWorkspace
 
-表示NocoDB工作区（仅限云实例）。
+Represents a NocoDB workspace (cloud instances only).
 
-#### 主要方法
+#### Main Methods
 
-- `list_projects()`: 列出工作区中的所有项目
-- `get_project(project_id: str)`: 获取工作区中的特定项目
+- `list_projects()`: List all projects in the workspace
+- `get_project(project_id: str)`: Get specific project in the workspace
 
 ### NocoDBProject
 
-表示NocoDB项目。
+Represents a NocoDB project.
 
-#### 主要方法
+#### Main Methods
 
-- `list_tables()`: 列出项目中的所有表格
-- `get_table(table_id: str)`: 获取项目中的特定表格
+- `list_tables()`: List all tables in the project
+- `get_table(table_id: str)`: Get specific table in the project
 
 ### NocoDBTable
 
-表示NocoDB表格。
+Represents a NocoDB table.
 
-#### 主要方法
+#### Main Methods
 
-- `list_columns()`: 列出表格中的所有列
-- `get_full_info()`: 获取表格的完整信息
+- `list_columns()`: List all columns in the table
+- `get_full_info()`: Get full information of the table
 
-## 开发
+## Development
 
-### 设置开发环境
+### Setting up Development Environment
 
-1. 克隆仓库:
+1. Clone the repository:
    ```bash
    git clone https://github.com/your-username/nocodb-py.git
    cd nocodb-py
    ```
 
-2. 创建虚拟环境:
+2. Create virtual environment:
    ```bash
    python -m venv venv
    source venv/bin/activate  # Linux/Mac
-   # 或
+   # or
    venv\Scripts\activate  # Windows
    ```
 
-3. 安装依赖:
+3. Install dependencies:
    ```bash
    pip install -e .
    ```
 
-### 运行测试
+### Running Tests
 
-1. 复制测试环境配置:
+1. Copy test environment configuration:
    ```bash
    cp tests/.env.example tests/.env
    ```
 
-2. 在 `tests/.env` 中配置你的NocoDB实例信息
+2. Configure your NocoDB instance information in `tests/.env`
 
-3. 运行测试:
+3. Run tests:
    ```bash
    python tests/test.py
    ```
 
-## 状态
+## Status
 
-此SDK处于早期开发阶段，API可能会发生变化。不建议在生产环境中使用。
+This SDK is in early development stage, and the API may change. Not recommended for production use.
 
-## 许可证
+## License
 
-本项目采用MIT许可证。详情请见 [LICENSE](LICENSE) 文件。
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
