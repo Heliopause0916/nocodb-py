@@ -43,6 +43,7 @@ class NocoDBClient:
         self._base_url = base_url
         self._xc_token = xc_token
         self._timeout = timeout
+        self._workspace_id = workspace_id
 
         self._cache_ttl = cache_ttl
         self._nocodb_info_cache = None
@@ -75,8 +76,9 @@ class NocoDBClient:
     def __eq__(self, other) -> bool:
         if not isinstance(other, NocoDBClient):
             return NotImplemented
-        return (self._base_url == other._base_url and 
-                self._xc_token == other._xc_token)
+        return (self._base_url == other._base_url and
+                self._xc_token == other._xc_token and
+                self._workspace_id == other._workspace_id)
 
     def __hash__(self) -> int:
         """
@@ -86,7 +88,35 @@ class NocoDBClient:
             int: Hash value based on immutable attributes
         """
         # 只对用于相等性比较的不可变属性进行哈希
-        return hash((self._base_url, self._xc_token))
+        return hash((self._base_url, self._xc_token, self._workspace_id))
+
+    def get_workspace_id(self) -> Optional[str]:
+        """
+        Get the workspace ID of the NocoDB instance
+        
+        Returns:
+            str: The workspace ID
+        """
+        return self._workspace_id
+
+    def set_workspace_id(self, workspace_id: str) -> None:
+        """
+        Set the workspace ID of the NocoDB instance
+        
+        Args:
+            workspace_id (str): The workspace ID to set
+        """
+        self._workspace_id = workspace_id
+
+    def get_workspaces_full_info(self, force_refresh: bool = False) -> Optional[dict]:
+        """
+        Get all workspaces with full information
+        
+        Returns:
+            dict: The workspaces information
+        """
+        # TODO: Implement this method
+        pass
 
     def get_base_url(self) -> str:
         """
