@@ -9,8 +9,8 @@ import time
 import threading
 from typing import Dict, List, Any, Optional, Union
 import requests
+from .utils import parse_utc_datetime, count_of_nocodb_data
 from .client import NocoDBClient
-# from .utils import parse_utc_datetime
 
 # pylint: disable=too-many-instance-attributes
 class NocoDBProject:
@@ -151,11 +151,57 @@ class NocoDBProject:
               (cache_ttl is None or current_time - self._tables_timestamp < cache_ttl)
               ):
                 return self._tables_cache
-
-            self._tables_cache = self._get(f"/api/v1/db/meta/projects/{self._project_id}/tables",
-                                           params={"includeM2M": include_m2m})
+            params = {
+                "includeM2M": include_m2m
+            }
+            self._tables_cache = self._get(f"{self.get_meta_v2_prefix()}/tables",
+                                           params=params)
             self._tables_timestamp = current_time
             return self._tables_cache
+
+    def list_tables(self, force_refresh: bool = False, include_m2m: bool = False,
+                      full_info: bool = False, convert_time: bool = False) -> list:
+        """
+        List all tables in the project
+        
+        Args:
+            force_refresh (bool): Force refresh the cache
+            full_info (bool): Get full information of the tables
+            convert_time (bool): Convert time fields to datetime objects
+            
+        """
+        tables_data = self.get_tables_full_info(force_refresh=force_refresh, include_m2m=include_m2m)
+        tables_list: list[dict[str, Any]] = tables_data.get("list", [])
+
+        if convert_time:
+            tables_list =[
+                {
+                    **table,
+                    'created_at': parse_utc_datetime(table.get('created_at', None)),
+                    'updated_at': parse_utc_datetime(table.get('updated_at', None))
+                }
+                for table in tables_list
+            ]
+
+        if not full_info:
+            tables_list = [
+                {
+                    "id": table.get("id", ""),
+                    "title": table.get("title", ""),
+                }
+                for table in tables_list
+                ]
+        return tables_list
+
+    def count_tables(self, force_refresh: bool = False) -> Optional[int]:
+        """
+        Count the number of tables in the project
+        
+        Returns:
+            int: The number of tables in the project
+        """
+        tables_data = self.get_tables_full_info(force_refresh=force_refresh)
+        return count_of_nocodb_data(tables_data)
 
     def get_meta_v2_prefix(self) -> str:
         """

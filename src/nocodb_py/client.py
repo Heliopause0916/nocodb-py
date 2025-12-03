@@ -381,8 +381,6 @@ class NocoDBClient:
                 {
                     "id": project.get("id", ""),
                     "title": project.get("title", ""),
-                    "created_at": project.get("created_at", None),
-                    "updated_at": project.get("updated_at", None),
                 }
                 for project in projects_list
                 ]
@@ -417,9 +415,7 @@ class NocoDBClient:
         Returns:
             NocoDBProject: The project instance
         """
-        if self.is_cloud():
-            raise RuntimeError("Cannot get project in cloud mode" \
-            ". You should first get a workspace.")
+        
         # pylint: disable=import-outside-toplevel
         # Reason: Avoid circular imports
         from .project import NocoDBProject

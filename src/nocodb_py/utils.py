@@ -44,10 +44,19 @@ def count_of_nocodb_data(nocodb_data: Optional[dict]) -> Optional[int]:
     Returns:
         int: 数据条数，如果数据为空则返回None
     """
+    total_rows :Optional[int] = None
     if not nocodb_data:
-        return None
-    page_info: dict = nocodb_data.get("pageInfo", {})
-    if isinstance(page_info, dict) is False:
-        return None
-    total_rows = page_info.get("totalRows", None)
+        total_rows = None
+    else:
+        page_info: dict = nocodb_data.get("pageInfo", {})
+        if isinstance(page_info, dict) is False:
+            total_rows = None
+        total_rows = page_info.get("totalRows", None)
+        if total_rows is None:
+            list_info: list = nocodb_data.get("list", [])
+            if isinstance(list_info, list):
+                total_rows = len(list_info)
+            else:
+                total_rows = None
+
     return total_rows
