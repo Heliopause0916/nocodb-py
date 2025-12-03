@@ -15,6 +15,10 @@ dependencies = [
     "requests>=2.25.0",
 ]
 
+authors = [
+  {name = "Heliopause0916", email = "stevenw0916@mail.ustc.edu.cn"},
+]
+
 [tool.setuptools-scm]
 # 早期开发使用此格式：0.0.0.dev{commit_count}+g{short_hash}
 version_scheme = "guess-next-dev"
