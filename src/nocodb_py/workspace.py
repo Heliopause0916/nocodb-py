@@ -108,7 +108,7 @@ class NocoDBWorkspace(NocoDBClient):
         """
         return self._workspace_id
 
-    def get_meta_v2_prefix(self):
+    def get_meta_v2_prefix(self) -> str:
         """
         Get the meta v2 prefix for the workspace
         
@@ -116,26 +116,3 @@ class NocoDBWorkspace(NocoDBClient):
             str: The meta v2 prefix
         """
         return f"/api/v2/meta/workspaces/{self._workspace_id}"
-
-    def get_projects_full_info_v2(self, force_refresh: bool = False) -> dict:
-        """
-        Get projects data
-        
-        Returns:
-            dict: Projects data
-        """
-        if self.is_cloud():
-            raise RuntimeError("get_projects_full_info_v2 is not available in cloud mode. " \
-            "Use get_workspaces() and then get_projects() on a workspace instead.")
-
-        with self._cache_lock:
-            current_time = time.time()
-            cache_ttl = self._get_cache_ttl("projects")
-            if(not force_refresh and self._projects_cache is not None and
-               (cache_ttl is None or current_time - self._nocodb_info_timestamp < cache_ttl)
-               ):
-                return self._projects_cache
-
-            self._projects_cache = self._get(f"{self.get_meta_v2_prefix}/bases")
-            self._projects_timeout = current_time
-            return self._projects_cache

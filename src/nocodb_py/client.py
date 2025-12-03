@@ -310,29 +310,6 @@ class NocoDBClient:
         me = self.get_me_full_info(force_refresh=force_refresh)
         return me.get("display_name", "Unknown") if me else "Unknown"
 
-    def get_projects_full_info_v1(self, force_refresh: bool = False) -> dict:
-        """
-        Get projects data
-        
-        Returns:
-            dict: Projects data
-        """
-        if self.is_cloud():
-            raise RuntimeError("get_projects_full_info_v1 is not available in cloud mode. " \
-            "Use get_workspaces() and then get_projects() on a workspace instead.")
-
-        with self._cache_lock:
-            current_time = time.time()
-            cache_ttl = self._get_cache_ttl("projects")
-            if(not force_refresh and self._projects_cache is not None and
-               (cache_ttl is None or current_time - self._nocodb_info_timestamp < cache_ttl)
-               ):
-                return self._projects_cache
-
-            self._projects_cache = self._get("/api/v1/db/meta/projects")
-            self._projects_timeout = current_time
-            return self._projects_cache
-
     def get_projects_full_info_v2(self, force_refresh: bool = False) -> dict:
         """
         Get projects data
@@ -340,9 +317,6 @@ class NocoDBClient:
         Returns:
             dict: Projects data
         """
-        if self.is_cloud():
-            raise RuntimeError("get_projects_full_info_v2 is not available in cloud mode. " \
-            "Use get_workspaces() and then get_projects() on a workspace instead.")
 
         with self._cache_lock:
             current_time = time.time()
@@ -352,7 +326,7 @@ class NocoDBClient:
                ):
                 return self._projects_cache
 
-            self._projects_cache = self._get(f"{self.get_meta_v2_prefix}/bases")
+            self._projects_cache = self._get(f"{self.get_meta_v2_prefix()}/bases")
             self._projects_timeout = current_time
             return self._projects_cache
 
@@ -364,6 +338,15 @@ class NocoDBClient:
             dict: Projects data
         """
         return self.get_projects_full_info_v2(force_refresh=force_refresh)
+    
+    def get_bases_full_info(self, force_refresh: bool = False) -> dict:
+        """
+        Get bases data
+        
+        Returns:
+            dict: Bases data
+        """
+        return self.get_projects_full_info(force_refresh=force_refresh)
 
     def list_projects(self, force_refresh: bool = False, 
                       full_info: bool = False, convert_time: bool = False) -> list:
@@ -397,6 +380,16 @@ class NocoDBClient:
                 for project in projects_list
                 ]
         return projects_list
+
+    def list_bases(self, force_refresh: bool = False,
+                      full_info: bool = False, convert_time: bool = False) -> list:
+        """
+        List all projects in the workspace
+        
+        Alias of list_projects
+        """
+        return self.list_projects(force_refresh=force_refresh, full_info=full_info, 
+                            convert_time=convert_time)
 
     def get_project(self, project_id: str, **kwargs) -> 'NocoDBProject':
         """
