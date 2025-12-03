@@ -415,11 +415,14 @@ class NocoDBClient:
         Returns:
             NocoDBProject: The project instance
         """
-        
+
         # pylint: disable=import-outside-toplevel
         # Reason: Avoid circular imports
         from .project import NocoDBProject
-        return NocoDBProject(self, project_id, xc_token=self._xc_token, **kwargs)
+        return NocoDBProject(self,
+                             project_id=project_id,
+                             xc_token=self._xc_token,
+                             **kwargs)
 
     get_base = get_project
 

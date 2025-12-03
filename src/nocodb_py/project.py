@@ -8,9 +8,12 @@ This module provides a project class to interact with NocoDB project-specific AP
 import time
 import threading
 from typing import Dict, List, Any, Optional
+from typing import TYPE_CHECKING
 import requests
 from .utils import parse_utc_datetime, count_of_nocodb_data
 from .client import NocoDBClient
+if TYPE_CHECKING:
+    from .table import NocoDBTable
 
 # pylint: disable=too-many-instance-attributes
 class NocoDBProject:
@@ -204,6 +207,24 @@ class NocoDBProject:
         tables_data = self.get_tables_full_info(force_refresh=force_refresh)
         return count_of_nocodb_data(tables_data)
 
+    def get_table(self, table_id: str, **kwargs) -> 'NocoDBTable':
+        """
+        Get a NocoDBTable object from the project by its ID
+        
+        Args:
+            table_id (str): The ID of the table to get
+            
+        Returns:
+            NocoDBTable: The table object
+        """
+        # pylint: disable=import-outside-toplevel
+        # Reason: Avoid circular imports
+        from .table import NocoDBTable
+        return NocoDBTable(self,
+                           table_id=table_id,
+                           xc_token=self._xc_token,
+                           **kwargs)
+
     def get_meta_v2_prefix(self) -> str:
         """
         Get the meta v2 prefix for the project
@@ -211,13 +232,3 @@ class NocoDBProject:
             str: The meta v2 prefix for the project
         """
         return f"/api/v2/meta/bases/{self._project_id}"
-        
-
-    # def _get_info(self) -> Dict:
-    #     """
-    #     Get the information of the NocoDB instance
-        
-    #     Returns:
-    #         Dict[str, Any]: The information of the NocoDB instance
-    #     """
-    #     return self._client.get_info()
