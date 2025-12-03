@@ -205,3 +205,11 @@ class NocoDBTable:
                 for col in columns_list
             ]
         return columns_list
+
+    def count_columns(self) -> int:
+        """Count columns in a table."""
+        column_info = self.get_columns_full_info()
+        column_list = column_info
+        if isinstance(column_list, List):
+            return len(column_list)
+        return 0
