@@ -52,6 +52,8 @@ class NocoDBClient:
         self._user_me_timestamp = 0
         self._projects_cache = None
         self._projects_timeout = 0
+        self._workspaces_cache = None
+        self._workspaces_timeout = 0
 
         self._cache_lock = threading.RLock()
 
@@ -115,8 +117,44 @@ class NocoDBClient:
         Returns:
             dict: The workspaces information
         """
-        # TODO: Implement this method
-        pass
+        if not self.is_cloud():
+            return None
+        with self._cache_lock:
+            current_time = time.time()
+            cache_ttl = self._get_cache_ttl()
+            if(not force_refresh and
+               self._workspaces_cache is not None and
+               (cache_ttl is None or current_time - self._workspaces_timeout < cache_ttl)
+               ):
+                return self._workspaces_cache
+
+            self._workspaces_cache = self._get("/api/v1/workspaces")
+            self._workspaces_timeout = current_time
+            return self._workspaces_cache
+
+    def list_workspaces(self, force_refresh: bool = False,
+                        full_info: bool = False) -> Optional[list]:
+        """
+        List all workspaces
+        
+        Returns:
+            dict: The workspaces information
+        """
+
+        workspaces_data = self.get_workspaces_full_info(force_refresh=force_refresh)
+        if workspaces_data is None:
+            return None
+        workspaces_list = workspaces_data.get("list",[])
+
+        if not full_info:
+            workspaces_list = [
+                {
+                    "id": workspace.get("id", ""),
+                    "title": workspace.get("title", ""),
+                }
+                for workspace in workspaces_list
+                ]
+        return workspaces_list
 
     def get_base_url(self) -> str:
         """
