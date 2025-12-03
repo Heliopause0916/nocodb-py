@@ -53,7 +53,7 @@ class NocoDBTable:
             str: String representation of the table
         """
         return f"NocoDBTable(id='{self._table_id}', project={self._project})"
-    
+
     def __repr__(self) -> str:
         """
         Official string representation of the NocoDBTable
@@ -62,7 +62,7 @@ class NocoDBTable:
             str: Official representation of the table
         """
         return self.__str__()
-    
+
     def __eq__(self, other: object) -> bool:
         """
         Check equality with another NocoDBTable
@@ -104,3 +104,104 @@ class NocoDBTable:
         """
         return self._project
 
+    def get_meta_v2_prefix(self) -> str:
+        """
+        Get the meta v2 prefix
+        
+        Returns:
+            str: The meta v2 prefix
+        """
+        return f"/api/v2/meta/tables/{self._table_id}"
+
+    def get_data_v2_prefix(self) -> str:
+        """
+        Get the data v2 prefix
+        
+        Returns:
+            str: The data v2 prefix
+        """
+        return f"/api/v2/tables/{self._table_id}"
+
+    def _get(self, path: str, **kwargs) -> Dict:
+        url = f"{self._project.get_client().get_base_url()}{path}"
+        headers = {"xc-token": self._xc_token}
+        if 'headers' in kwargs:
+            headers.update(kwargs['headers'])
+            del kwargs['headers']
+
+        response = requests.get(url, headers=headers, timeout=self._timeout, **kwargs)
+        response.raise_for_status()
+        return response.json()
+
+    def get_full_info(self, force_refresh: bool = False) -> Dict:
+        """
+        Get the full info for the table
+        
+        Args:
+            force_refresh (bool): Whether to force a refresh of the table info
+            
+        Returns:
+            Dict: The full table info
+        """
+        with self._cache_lock:
+            current_time = time.time()
+            cache_ttl = self._cache_ttl
+            if(not force_refresh and
+               self._table_info_cache is not None and
+               (cache_ttl is None or current_time - self._table_info_timestamp < cache_ttl)
+               ):
+                return self._table_info_cache
+
+            self._table_info_cache = self._get(
+                f"{self.get_meta_v2_prefix()}"
+            )
+            self._table_info_timestamp = current_time
+            return self._table_info_cache
+
+    def get_columns_full_info(self, force_refresh: bool = False) -> List:
+        """
+        Get the full column info for the table
+        
+        Args:
+            force_refresh (bool): Force refresh the cache
+            
+        Returns:
+            Dict: The full column info
+        """
+        full_info = self.get_full_info(force_refresh=force_refresh)
+        return full_info.get("columns", [])
+
+    def list_columns(self, force_refresh: bool = False,
+                    full_info: bool = False, convert_time: bool = False) -> List:
+        """
+        List the column names for the table
+        
+        Args:
+            force_refresh (bool): Force refresh the cache
+            
+        Returns:
+            List[str]: The column names
+        """
+        columns_data = self.get_columns_full_info(force_refresh=force_refresh)
+        columns_list = columns_data
+
+        if convert_time:
+            columns_list = [
+                {
+                    **col,
+                    'created_at': parse_utc_datetime(col.get('created_at', None)),
+                    'updated_at': parse_utc_datetime(col.get('updated_at', None)),
+                }
+                for col in columns_list
+            ]
+
+        if not full_info:
+            columns_list = [
+                {
+                    "id": col.get("id", ""),
+                    "title": col.get("title", ""),
+                    "uidt": col.get("uidt", ""),
+                }
+                for col in columns_list
+            ]
+        return columns_list

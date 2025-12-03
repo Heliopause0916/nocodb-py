@@ -178,7 +178,7 @@ class NocoDBProject:
         tables_list: list[dict[str, Any]] = tables_data.get("list", [])
 
         if convert_time:
-            tables_list =[
+            tables_list = [
                 {
                     **table,
                     'created_at': parse_utc_datetime(table.get('created_at', None)),
