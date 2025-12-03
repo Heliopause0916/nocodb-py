@@ -13,6 +13,7 @@ import requests
 from .utils import parse_utc_datetime
 if TYPE_CHECKING:
     from .project import NocoDBProject
+    from .workspace import NocoDBWorkspace
 
 
 # pylint: disable=too-many-instance-attributes
@@ -25,11 +26,24 @@ class NocoDBClient:
         _xc_token (str): The authentication token for NocoDB API
     """
 
-    _DEFAULT_CACHE_TTL = 300
     CACHE_FOREVER = None
 
-    def __init__(self, base_url: str, xc_token: str, workspace_id: Optional[str] = None,
-                cache_ttl: Optional[int] = _DEFAULT_CACHE_TTL,
+    _base_url = ""
+    _xc_token = ""
+    _timeout = 0
+    _cache_ttl = 0
+
+    _nocodb_info_cache = None
+    _nocodb_info_timestamp = 0
+    _projects_cache = None
+    _projects_timeout = 0
+    _workspaces_cache = None
+    _workspaces_timeout = 0
+
+    _cache_lock = threading.RLock()
+
+    def __init__(self, base_url: str, xc_token: str,
+                cache_ttl: Optional[int] = 300,
                 timeout = 10
                 ):
         """
@@ -43,7 +57,6 @@ class NocoDBClient:
         self._base_url = base_url
         self._xc_token = xc_token
         self._timeout = timeout
-        self._workspace_id = workspace_id
 
         self._cache_ttl = cache_ttl
         self._nocodb_info_cache = None
@@ -79,8 +92,8 @@ class NocoDBClient:
         if not isinstance(other, NocoDBClient):
             return NotImplemented
         return (self._base_url == other._base_url and
-                self._xc_token == other._xc_token and
-                self._workspace_id == other._workspace_id)
+                self._xc_token == other._xc_token
+                )
 
     def __hash__(self) -> int:
         """
@@ -90,25 +103,7 @@ class NocoDBClient:
             int: Hash value based on immutable attributes
         """
         # 只对用于相等性比较的不可变属性进行哈希
-        return hash((self._base_url, self._xc_token, self._workspace_id))
-
-    def get_workspace_id(self) -> Optional[str]:
-        """
-        Get the workspace ID of the NocoDB instance
-        
-        Returns:
-            str: The workspace ID
-        """
-        return self._workspace_id
-
-    def set_workspace_id(self, workspace_id: str) -> None:
-        """
-        Set the workspace ID of the NocoDB instance
-        
-        Args:
-            workspace_id (str): The workspace ID to set
-        """
-        self._workspace_id = workspace_id
+        return hash((self._base_url, self._xc_token))
 
     def get_workspaces_full_info(self, force_refresh: bool = False) -> Optional[dict]:
         """
@@ -155,6 +150,27 @@ class NocoDBClient:
                 for workspace in workspaces_list
                 ]
         return workspaces_list
+
+    def get_workspace(self, workspace_id: str) -> 'NocoDBWorkspace':
+        """
+        Get a workspace by ID
+        
+        Args:
+            workspace_id (str): The workspace ID
+            
+        Returns:
+            NocoDBWorkspace: The workspace object
+        """
+
+        # pylint: disable=import-outside-toplevel
+        from .workspace import NocoDBWorkspace
+        return NocoDBWorkspace(
+            base_url=self._base_url,
+            xc_token=self._xc_token,
+            workspace_id=workspace_id,
+            cache_ttl=self._cache_ttl,
+            timeout=self._timeout,
+        )
 
     def get_base_url(self) -> str:
         """
@@ -301,6 +317,10 @@ class NocoDBClient:
         Returns:
             dict: Projects data
         """
+        if self.is_cloud():
+            raise RuntimeError("get_projects_full_info_v1 is not available in cloud mode. " \
+            "Use get_workspaces() and then get_projects() on a workspace instead.")
+
         with self._cache_lock:
             current_time = time.time()
             cache_ttl = self._get_cache_ttl("projects")
@@ -320,6 +340,10 @@ class NocoDBClient:
         Returns:
             dict: Projects data
         """
+        if self.is_cloud():
+            raise RuntimeError("get_projects_full_info_v2 is not available in cloud mode. " \
+            "Use get_workspaces() and then get_projects() on a workspace instead.")
+
         with self._cache_lock:
             current_time = time.time()
             cache_ttl = self._get_cache_ttl("projects")
@@ -328,7 +352,7 @@ class NocoDBClient:
                ):
                 return self._projects_cache
 
-            self._projects_cache = self._get("/api/v2/meta/bases")
+            self._projects_cache = self._get(f"{self.get_meta_v2_prefix}/bases")
             self._projects_timeout = current_time
             return self._projects_cache
 
@@ -339,7 +363,7 @@ class NocoDBClient:
         Returns:
             dict: Projects data
         """
-        return self.get_projects_full_info_v1(force_refresh=force_refresh)
+        return self.get_projects_full_info_v2(force_refresh=force_refresh)
 
     def list_projects(self, force_refresh: bool = False, 
                       full_info: bool = False, convert_time: bool = False) -> list:
@@ -384,20 +408,20 @@ class NocoDBClient:
         Returns:
             NocoDBProject: The project instance
         """
+        if self.is_cloud():
+            raise RuntimeError("Cannot get project in cloud mode" \
+            ". You should first get a workspace.")
         # pylint: disable=import-outside-toplevel
         # Reason: Avoid circular imports
         from .project import NocoDBProject
         return NocoDBProject(self, project_id, xc_token=self._xc_token, **kwargs)
 
-    def create_project_instance(self, project_id: str) -> 'NocoDBProject':
+    def get_meta_v2_prefix(self) -> str:
         """
-        Create a NocoDBProject instance for the specified project ID
-        (Alias for get_project)
+        Get the meta v2 prefix for the API
         
-        Args:
-            project_id (str): The project ID
-            
         Returns:
-            NocoDBProject: The project instance
+            str: The meta v2 prefix
         """
-        return self.get_project(project_id)
+
+        return "/api/v2/meta"
