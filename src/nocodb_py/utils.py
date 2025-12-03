@@ -6,7 +6,7 @@ This module provides utility functions for handling NocoDB data
 """
 
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Dict, List, Any, Optional
 
 # 支持的时间格式常量
 UTC_DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
@@ -34,7 +34,7 @@ def parse_utc_datetime(value: Optional[str], format_str: str = UTC_DATETIME_FORM
     except ValueError:
         return EPOCH_ZERO
 
-def count_of_nocodb_data(nocodb_data: Optional[dict]) -> Optional[int]:
+def count_of_nocodb_data(nocodb_data: Optional[Dict]) -> Optional[int]:
     """
     计算nocodb数据的条数
     
@@ -49,14 +49,14 @@ def count_of_nocodb_data(nocodb_data: Optional[dict]) -> Optional[int]:
 
     # 优先从 pageInfo 获取
     page_info = nocodb_data.get("pageInfo")
-    if isinstance(page_info, dict):
+    if isinstance(page_info, Dict):
         total_rows = page_info.get("totalRows")
         if total_rows is not None:
             return total_rows
 
     # 备用方案：计算 list 长度
     list_data = nocodb_data.get("list")
-    if isinstance(list_data, list):
+    if isinstance(list_data, List):
         return len(list_data)
 
     return None

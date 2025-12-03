@@ -7,7 +7,7 @@ This module provides a project class to interact with NocoDB project-specific AP
 
 import time
 import threading
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional
 import requests
 from .utils import parse_utc_datetime, count_of_nocodb_data
 from .client import NocoDBClient
@@ -21,8 +21,9 @@ class NocoDBProject:
         _client (NocoDBClient): The NocoDB client instance
         _project_id (str): The unique project identifier
     """
-
-    def __init__(self, client: NocoDBClient, project_id: str, xc_token: str, timeout: int = 30, cache_ttl: Optional[int] = 300):
+    # pylint: disable=too-many-arguments,too-many-positional-arguments
+    def __init__(self, client: NocoDBClient, project_id: str, xc_token: str,
+                 timeout: int = 30, cache_ttl: Optional[int] = 300):
         """
         Initialize the NocoDBProject with client and project ID
         
@@ -103,7 +104,7 @@ class NocoDBProject:
         """
         return self._client
 
-    def _get(self, path: str, **kwargs) -> dict:
+    def _get(self, path: str, **kwargs) -> Dict:
         url = f"{self._client.get_base_url()}{path}"
         headers = {"xc-token": self._xc_token}
         if 'headers' in kwargs:
@@ -114,7 +115,7 @@ class NocoDBProject:
         response.raise_for_status()
         return response.json()
 
-    def get_full_info(self, force_refresh: bool = False) -> dict:
+    def get_full_info(self, force_refresh: bool = False) -> Dict:
         """
         Get the full information of the NocoDB instance
         
@@ -136,7 +137,7 @@ class NocoDBProject:
             self._project_info_timestamp = current_time
             return self._project_info_cache
 
-    def get_tables_full_info(self, force_refresh: bool = False, include_m2m: bool = False) -> dict:
+    def get_tables_full_info(self, force_refresh: bool = False, include_m2m: bool = False) -> Dict:
         """
         Get the full information of all tables in the project
         
@@ -160,7 +161,7 @@ class NocoDBProject:
             return self._tables_cache
 
     def list_tables(self, force_refresh: bool = False, include_m2m: bool = False,
-                      full_info: bool = False, convert_time: bool = False) -> list:
+                      full_info: bool = False, convert_time: bool = False) -> List:
         """
         List all tables in the project
         
@@ -212,7 +213,7 @@ class NocoDBProject:
         return f"/api/v2/meta/bases/{self._project_id}"
         
 
-    # def _get_info(self) -> dict:
+    # def _get_info(self) -> Dict:
     #     """
     #     Get the information of the NocoDB instance
         

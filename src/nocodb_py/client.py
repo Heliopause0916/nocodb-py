@@ -7,7 +7,7 @@ This module provides a client class to interact with NocoDB API
 
 import time
 import threading
-from typing import Any, Optional
+from typing import Dict, List, Any, Optional
 from typing import TYPE_CHECKING
 import requests
 from .utils import parse_utc_datetime, count_of_nocodb_data
@@ -106,7 +106,7 @@ class NocoDBClient:
         # 只对用于相等性比较的不可变属性进行哈希
         return hash((self._base_url, self._xc_token))
 
-    def get_workspaces_full_info(self, force_refresh: bool = False) -> Optional[dict]:
+    def get_workspaces_full_info(self, force_refresh: bool = False) -> Optional[Dict]:
         """
         Get all workspaces with full information
         
@@ -142,7 +142,7 @@ class NocoDBClient:
         return count_of_nocodb_data(workspaces)
 
     def list_workspaces(self, force_refresh: bool = False,
-                        full_info: bool = False) -> Optional[list]:
+                        full_info: bool = False) -> Optional[List]:
         """
         List all workspaces
         
@@ -210,7 +210,7 @@ class NocoDBClient:
         # return self._cache_ttl_policies.get(cache_key, self._default_cache_ttl)
         return self._cache_ttl
 
-    def _get(self, path: str, **kwargs) -> dict:
+    def _get(self, path: str, **kwargs) -> Dict:
         url = f"{self._base_url}{path}"
         headers = {"xc-token": self._xc_token}
         if 'headers' in kwargs:
@@ -220,7 +220,7 @@ class NocoDBClient:
         response.raise_for_status()
         return response.json()
 
-    def get_nocodb_full_info(self, force_refresh: bool = False) -> dict:
+    def get_nocodb_full_info(self, force_refresh: bool = False) -> Dict:
         """
         Get NocoDB instance information from /api/v1/db/meta/nocodb/info
         
@@ -269,7 +269,7 @@ class NocoDBClient:
         info = self.get_nocodb_full_info(force_refresh=force_refresh)
         return info.get("isCloud", False)
 
-    def get_me_full_info(self, force_refresh: bool = False) -> dict:
+    def get_me_full_info(self, force_refresh: bool = False) -> Dict:
         """
         Get current user information
         
@@ -324,7 +324,7 @@ class NocoDBClient:
         me = self.get_me_full_info(force_refresh=force_refresh)
         return me.get("display_name", "Unknown") if me else "Unknown"
 
-    def get_projects_full_info_backend(self, force_refresh: bool = False) -> dict:
+    def get_projects_full_info_backend(self, force_refresh: bool = False) -> Dict:
         """
         Get projects data
         
@@ -344,7 +344,7 @@ class NocoDBClient:
             self._projects_timeout = current_time
             return self._projects_cache
 
-    def get_projects_full_info(self, force_refresh: bool = False) -> dict:
+    def get_projects_full_info(self, force_refresh: bool = False) -> Dict:
         """
         Get projects data
         
@@ -364,7 +364,7 @@ class NocoDBClient:
             dict: Projects list
         """
         projects_data = self.get_projects_full_info(force_refresh= force_refresh)
-        projects_list: list[dict[str, Any]] = projects_data.get("list", [])
+        projects_list: List[Dict[str, Any]] = projects_data.get("list", [])
 
         if convert_time:
             projects_list =[
