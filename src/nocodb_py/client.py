@@ -18,6 +18,10 @@ if TYPE_CHECKING:
 
 
 # pylint: disable=too-many-instance-attributes
+# pylint: disable=trailing-whitespace
+# pylint: disable=too-many-public-methods
+# pylint: disable=line-too-long
+# pylint: disable=import-outside-toplevel
 class NocoDBClient:
     """
     A client class for interacting with NocoDB API
@@ -220,7 +224,7 @@ class NocoDBClient:
         response.raise_for_status()
         return response.json()
 
-    def get_nocodb_full_info(self, force_refresh: bool = False) -> Dict:
+    def get_full_info(self, force_refresh: bool = False) -> Dict:
         """
         Get NocoDB instance information from /api/v1/db/meta/nocodb/info
         
@@ -256,7 +260,7 @@ class NocoDBClient:
         Returns:
             str: Server version string
         """
-        info = self.get_nocodb_full_info(force_refresh=force_refresh)
+        info = self.get_full_info(force_refresh=force_refresh)
         return info.get("version", "Unknown")
 
     def is_cloud(self, force_refresh: bool = False) -> bool:
@@ -266,7 +270,7 @@ class NocoDBClient:
         Returns:
             bool: True if server is NocoDB Cloud
         """
-        info = self.get_nocodb_full_info(force_refresh=force_refresh)
+        info = self.get_full_info(force_refresh=force_refresh)
         return info.get("isCloud", False)
 
     def get_me_full_info(self, force_refresh: bool = False) -> Dict:
@@ -461,3 +465,31 @@ class NocoDBClient:
             workspace["id"] for workspace in workspaces
             if match_func(title, workspace.get("title", ""))
         ]
+
+    def find_projects_by_title(self, title: str, match_func: Optional[Callable[[str, str], bool]] =None, force_refresh: bool = False) -> list:
+        """
+        通过title查找匹配的project_id列表
+        
+        Args:
+            title (str): 搜索的title字符串
+            match_func (Callable): 匹配函数，接受两个字符串参数返回bool，默认使用精确匹配
+            force_refresh (bool): 是否强制刷新缓存
+            
+        Returns:
+            List[str]: 匹配的project_id列表
+        """
+        from .utils import exact_match  # 避免循环导入
+
+        if match_func is None:
+            match_func = exact_match
+
+        projects: Optional[List[Dict[str, Any]]] = self.list_projects(force_refresh=force_refresh)
+        if projects is None:
+            return []
+
+        return [
+            project["id"] for project in projects
+            if match_func(title, project.get("title", ""))
+        ]
+
+    find_bases_by_title = find_projects_by_title

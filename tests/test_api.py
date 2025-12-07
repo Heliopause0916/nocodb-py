@@ -116,8 +116,8 @@ class TestNocoDBIntegration:
     def test_get_nocodb_info(self, client, client_cloud):
         """测试获取 NocoDB 完整信息（注释掉的代码）"""
         # 如果这些函数存在且你想测试它们，取消注释
-        # info_local = client.get_nocodb_full_info()
-        # info_cloud = client_cloud.get_nocodb_full_info()
+        # info_local = client.get_full_info()
+        # info_cloud = client_cloud.get_full_info()
         # print("NocoDB info functions executed successfully")
 
 # 如果需要更详细的调试信息，可以添加这个测试

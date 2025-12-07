@@ -11,6 +11,12 @@ It cannot be used with self-hosted NocoDB instances.
 from typing import Optional
 from .client import NocoDBClient
 
+# pylint: disable=too-many-instance-attributes
+# pylint: disable=trailing-whitespace
+# pylint: disable=too-many-public-methods
+# pylint: disable=line-too-long
+# pylint: disable=import-outside-toplevel
+
 class NocoDBWorkspace(NocoDBClient):
     """
     NocoDB Workspace Class
