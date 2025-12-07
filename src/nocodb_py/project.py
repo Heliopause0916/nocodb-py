@@ -7,7 +7,7 @@ This module provides a project class to interact with NocoDB project-specific AP
 
 import time
 import threading
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Callable
 from typing import TYPE_CHECKING
 import requests
 from .utils import parse_utc_datetime, count_of_nocodb_data
@@ -16,6 +16,8 @@ if TYPE_CHECKING:
     from .table import NocoDBTable
 
 # pylint: disable=too-many-instance-attributes
+# pylint: disable=trailing-whitespace
+# pylint: disable=line-too-long
 class NocoDBProject:
     """
     A class representing a NocoDB project with project-specific operations
@@ -232,3 +234,30 @@ class NocoDBProject:
             str: The meta v2 prefix for the project
         """
         return f"/api/v2/meta/bases/{self._project_id}"
+
+    def find_tables_by_title(self, title: str, match_func :Optional[Callable[[str, str], bool]] =None, force_refresh: bool = False) -> list:
+        """
+        通过title查找匹配的table_id列表
+        
+        Args:
+            title (str): 搜索的title字符串
+            match_func (Callable): 匹配函数，接受两个字符串参数返回bool，默认使用精确匹配
+            force_refresh (bool): 是否强制刷新缓存
+            
+        Returns:
+            List[str]: 匹配的table_id列表
+        """
+        # pylint: disable=import-outside-toplevel
+        from .utils import exact_match  # 避免循环导入
+        
+        if match_func is None:
+            match_func = exact_match
+        
+        tables: Optional[List[Dict[str, Any]]] = self.list_tables(force_refresh=force_refresh)
+        if tables is None:
+            return []
+        
+        return [
+            table["id"] for table in tables
+            if match_func(title, table.get("title", ""))
+        ]

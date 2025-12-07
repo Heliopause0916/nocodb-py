@@ -5,6 +5,10 @@ Utility functions for NocoDB Python client
 This module provides utility functions for handling NocoDB data
 """
 
+# pylint: disable=too-many-instance-attributes
+# pylint: disable=trailing-whitespace
+# pylint: disable=line-too-long
+
 from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 
@@ -60,3 +64,31 @@ def count_of_nocodb_data(nocodb_data: Optional[Dict]) -> Optional[int]:
         return len(list_data)
 
     return None
+
+
+def exact_match(search_text: str, target_text: str) -> bool:
+    """
+    精确匹配：检查搜索文本是否完全等于目标文本（区分大小写）
+    
+    Args:
+        search_text (str): 搜索的文本
+        target_text (str): 目标文本
+        
+    Returns:
+        bool: 如果目标文本完全等于搜索文本（区分大小写）则返回True
+    """
+    return search_text == target_text
+
+
+def fuzzy_match(search_text: str, target_text: str) -> bool:
+    """
+    模糊匹配：检查搜索文本是否包含在目标文本中（不区分大小写）
+    
+    Args:
+        search_text (str): 搜索的文本
+        target_text (str): 目标文本
+        
+    Returns:
+        bool: 如果目标文本包含搜索文本（不区分大小写）则返回True
+    """
+    return search_text.lower() in target_text.lower()

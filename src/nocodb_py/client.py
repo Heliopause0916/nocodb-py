@@ -7,7 +7,7 @@ This module provides a client class to interact with NocoDB API
 
 import time
 import threading
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Callable
 from typing import TYPE_CHECKING
 import requests
 from .utils import parse_utc_datetime, count_of_nocodb_data
@@ -435,3 +435,29 @@ class NocoDBClient:
         """
 
         return "/api/v2/meta"
+
+    def find_workspaces_by_title(self, title: str, match_func: Optional[Callable[[str, str], bool]] =None, force_refresh: bool = False) -> list:
+        """
+        通过title查找匹配的workspace_id列表
+        
+        Args:
+            title (str): 搜索的title字符串
+            match_func (Callable): 匹配函数，接受两个字符串参数返回bool，默认使用精确匹配
+            force_refresh (bool): 是否强制刷新缓存
+            
+        Returns:
+            List[str]: 匹配的workspace_id列表
+        """
+        from .utils import exact_match  # 避免循环导入
+
+        if match_func is None:
+            match_func = exact_match
+
+        workspaces: Optional[List[Dict[str, Any]]] = self.list_workspaces(force_refresh=force_refresh)
+        if workspaces is None:
+            return []
+
+        return [
+            workspace["id"] for workspace in workspaces
+            if match_func(title, workspace.get("title", ""))
+        ]
