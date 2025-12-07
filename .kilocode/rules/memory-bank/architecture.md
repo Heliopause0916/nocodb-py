@@ -131,39 +131,96 @@ sequenceDiagram
 ### 功能模块划分
 ```mermaid
 graph TD
-    A[V2 API支持] --> B[基础管理]
-    A --> C[表格管理]
-    A --> D[视图管理]
-    A --> E[列操作]
-    A --> F[过滤器排序]
-    A --> G[数据源管理]
-    A --> H[用户权限]
-    A --> I[评论系统]
-    A --> J[Webhooks]
-    A --> K[API令牌]
+    A[V2 API支持] --> B[元数据管理]
+    A --> C[数据操作]
     
-    B --> B1[列表基础]
-    B --> B2[创建基础]
-    B --> B3[获取基础]
-    B --> B4[更新基础]
-    B --> B5[删除基础]
+    B --> B1[基础管理]
+    B --> B2[表格管理]
+    B --> B3[视图管理]
+    B --> B4[列操作]
+    B --> B5[过滤器排序]
+    B --> B6[数据源管理]
+    B --> B7[用户权限]
+    B --> B8[评论系统]
+    B --> B9[Webhooks]
+    B --> B10[API令牌]
     
-    C --> C1[列表表格]
-    C --> C2[创建表格]
-    C --> C3[获取表格元数据]
-    C --> C4[更新表格]
-    C --> C5[删除表格]
+    C --> C1[记录CRUD]
+    C --> C2[链接记录]
+    C --> C3[附件管理]
     
-    D --> D1[网格视图]
-    D --> D2[表单视图]
-    D --> D3[画廊视图]
-    D --> D4[看板视图]
+    B1 --> B11[列表基础]
+    B1 --> B12[创建基础]
+    B1 --> B13[获取基础]
+    B1 --> B14[更新基础]
+    B1 --> B15[删除基础]
+    
+    B2 --> B21[列表表格]
+    B2 --> B22[创建表格]
+    B2 --> B23[获取表格元数据]
+    B2 --> B24[更新表格]
+    B2 --> B25[删除表格]
+    
+    B3 --> B31[网格视图]
+    B3 --> B32[表单视图]
+    B3 --> B33[画廊视图]
+    B3 --> B34[看板视图]
+    
+    C1 --> C11[列出记录]
+    C1 --> C12[创建记录]
+    C1 --> C13[读取记录]
+    C1 --> C14[更新记录]
+    C1 --> C15[删除记录]
+    C1 --> C16[统计记录]
+    
+    C2 --> C21[列出链接]
+    C2 --> C22[链接记录]
+    C2 --> C23[取消链接]
 ```
 
 ### API端点映射
+
+#### 元数据API端点 (`/api/v2/meta/`)
 - **基础操作**：`/api/v2/meta/bases/` 和 `/api/v2/meta/workspaces/{workspaceId}/bases/`
-- **表格操作**：`/api/v2/meta/bases/{baseId}/tables`
-- **视图操作**：`/api/v2/meta/tables/{tableId}/views`
-- **列操作**：`/api/v2/meta/tables/{tableId}/columns`
-- **过滤器操作**：`/api/v2/meta/views/{viewId}/filters`
-- **排序操作**：`/api/v2/meta/views/{viewId}/sorts`
+- **表格操作**：`/api/v2/meta/bases/{baseId}/tables` 和 `/api/v2/meta/tables/{tableId}`
+- **视图操作**：`/api/v2/meta/tables/{tableId}/views` 和 `/api/v2/meta/views/{viewId}`
+- **列操作**：`/api/v2/meta/tables/{tableId}/columns` 和 `/api/v2/meta/columns/{columnId}`
+- **过滤器操作**：`/api/v2/meta/views/{viewId}/filters` 和 `/api/v2/meta/filters/{filterId}`
+- **排序操作**：`/api/v2/meta/views/{viewId}/sorts` 和 `/api/v2/meta/sorts/{sortId}`
+- **数据源管理**：`/api/v2/meta/bases/{baseId}/sources/`
+- **用户管理**：`/api/v2/meta/bases/{baseId}/users`
+- **评论系统**：`/api/v2/meta/comments`
+- **Webhooks管理**：`/api/v2/meta/tables/{tableId}/hooks`
+- **API令牌管理**：`/api/v2/meta/bases/{baseId}/api-tokens`
+
+#### 数据API端点 (`/api/v2/`)
+- **记录操作**：`/api/v2/tables/{tableId}/records` (CRUD操作)
+- **链接记录**：`/api/v2/tables/{tableId}/links/{linkFieldId}/records/{recordId}`
+- **附件上传**：`/api/v2/storage/upload`
+- **记录统计**：`/api/v2/tables/{tableId}/records/count`
+
+### 数据流架构扩展
+```mermaid
+sequenceDiagram
+    participant User
+    participant SDK
+    participant MetaAPI
+    participant DataAPI
+    participant Cache
+    
+    User->>SDK: 发起元数据请求
+    SDK->>Cache: 检查缓存
+    alt 缓存有效
+        Cache-->>SDK: 返回缓存数据
+    else 缓存无效
+        SDK->>MetaAPI: 发送元数据API请求
+        MetaAPI-->>SDK: 返回元数据
+        SDK->>Cache: 更新缓存
+    end
+    SDK-->>User: 返回元数据结果
+    
+    User->>SDK: 发起数据操作请求
+    SDK->>DataAPI: 发送数据API请求
+    DataAPI-->>SDK: 返回数据结果
+    SDK-->>User: 返回数据操作结果
+```
