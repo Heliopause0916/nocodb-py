@@ -14,7 +14,7 @@ This module provides a client class to interact with NocoDB API
 
 import time
 import threading
-from typing import Dict, List, Any, Optional, Callable
+from typing import Dict, List, Any, Optional, Callable, Union
 from typing import TYPE_CHECKING
 import requests
 from .utils import parse_utc_datetime, count_of_nocodb_data
@@ -204,7 +204,7 @@ class NocoDBClient:
     def _get_cache_ttl(self, cache_key: Optional[str] = None) -> Optional[int]:
         """
         Get cache TTL for a specific cache key
-        为特定缓存键获取缓存TTL，优先使用注册表，否则使用默认值
+        Priority is given to the registry, otherwise the default value is used
         
         Args:
             cache_key (str): The cache key to get TTL for
@@ -420,6 +420,31 @@ class NocoDBClient:
             self._projects_timeout = current_time
             return self._projects_cache
 
+    def _validate_project_access(self) -> None:
+        """
+        Validate if the current instance has permission to access project data
+        
+        Raises:
+            ValueError: When the instance type does not match the deployment mode
+        """
+        is_cloud_instance = self.is_cloud()
+        class_name = type(self).__name__
+        
+        # 检查是否满足允许条件
+        allowed_conditions = [
+            (is_cloud_instance and class_name == "NocoDBWorkspace"),
+            (not is_cloud_instance and class_name == "NocoDBClient")
+        ]
+        
+        if not any(allowed_conditions):
+            raise ValueError(
+                f"Invalid project access: "
+                f"Instance type '{class_name}' is not allowed for "
+                f"{'cloud' if is_cloud_instance else 'self-hosted'} instance. "
+                f"Only NocoDBWorkspace can access projects on cloud instances, "
+                f"and only NocoDBClient can access projects on self-hosted instances."
+            )
+
     def get_projects_full_info(self, force_refresh: bool = False) -> Dict:
         """
         Get projects data
@@ -427,11 +452,14 @@ class NocoDBClient:
         Returns:
             dict: Projects data
         """
+        # 验证project访问权限
+        self._validate_project_access()
+        
         return self.get_projects_full_info_backend(force_refresh=force_refresh)
 
     get_bases_full_info = get_projects_full_info
 
-    def list_projects(self, force_refresh: bool = False, 
+    def list_projects(self, force_refresh: bool = False,
                       full_info: bool = False, convert_time: bool = False) -> list:
         """
         List projects
@@ -439,6 +467,9 @@ class NocoDBClient:
         Returns:
             dict: Projects list
         """
+        # 验证project访问权限
+        self._validate_project_access()
+        
         projects_data = self.get_projects_full_info(force_refresh= force_refresh)
         projects_list: List[Dict[str, Any]] = projects_data.get("list", [])
 
@@ -474,6 +505,9 @@ class NocoDBClient:
         Returns:
             int: The number of projects
         """
+        # 验证project访问权限
+        self._validate_project_access()
+        
         projects = self.get_projects_full_info(force_refresh=force_refresh)
         if projects is None:
             return None
@@ -516,6 +550,9 @@ class NocoDBClient:
         Raises:
             ValueError: When project is not found or title is empty
         """
+        # 验证project访问权限
+        self._validate_project_access()
+        
         projects = self.list_projects(force_refresh=force_refresh)
         if projects is None:
             raise ValueError("Failed to get project list")
@@ -571,17 +608,57 @@ class NocoDBClient:
 
         return "/api/v2/meta"
 
-    def find_workspaces_by_title(self, title: str, match_func: Optional[Callable[[str, str], bool]] =None, force_refresh: bool = False) -> list:
+    def create_project(self, title: str, description: Optional[str] = None,
+                      return_type: str = 'object') -> Union[Dict, 'NocoDBProject']:
         """
-        通过title查找匹配的workspace_id列表
+        Create a new NocoDB project
         
         Args:
-            title (str): 搜索的title字符串
-            match_func (Callable): 匹配函数，接受两个字符串参数返回bool，默认使用精确匹配
-            force_refresh (bool): 是否强制刷新缓存
+            title (str): Project title
+            description (Optional[str]): Project description, optional
+            return_type (str): Return type, 'json' returns JSON response, 'object' returns NocoDBProject object, default is 'object'
             
         Returns:
-            List[str]: 匹配的workspace_id列表
+            Union[Dict, NocoDBProject]:
+                - If return_type='json': Returns API JSON response
+                - If return_type='object': Returns NocoDBProject object
+                
+        Raises:
+            requests.exceptions.RequestException: HTTP request failed
+            ValueError: When return_type parameter is invalid
+        """
+        path = f"{self.get_meta_v2_prefix()}/bases"
+        data = {"title": title}
+        if description is not None:
+            data["description"] = description
+            
+        response = self._post(path, data=data)
+        
+        if return_type == 'object':
+            project_id = response.get('id')
+            if project_id is None:
+                raise ValueError("响应中未包含项目ID")
+            # pylint: disable=import-outside-toplevel
+            from .project import NocoDBProject
+            project_obj = NocoDBProject(self, project_id, self._xc_token,
+                                       timeout=self._timeout, cache_ttl=self._cache_ttl)
+            return project_obj
+        elif return_type == 'json':
+            return response
+        else:
+            raise ValueError(f"无效的return_type参数: {return_type}。可选值: 'json' 或 'object'")
+
+    def find_workspaces_by_title(self, title: str, match_func: Optional[Callable[[str, str], bool]] =None, force_refresh: bool = False) -> list:
+        """
+        Find matching workspace_id list by title
+        
+        Args:
+            title (str): Title string to search for
+            match_func (Callable): Matching function that takes two string parameters and returns bool, defaults to exact match
+            force_refresh (bool): Whether to force refresh cache
+            
+        Returns:
+            List[str]: List of matching workspace IDs
         """
         from .utils import exact_match  # 避免循环导入
 
@@ -599,16 +676,19 @@ class NocoDBClient:
 
     def find_projects_by_title(self, title: str, match_func: Optional[Callable[[str, str], bool]] =None, force_refresh: bool = False) -> list:
         """
-        通过title查找匹配的project_id列表
+        Find matching project_id list by title
         
         Args:
-            title (str): 搜索的title字符串
-            match_func (Callable): 匹配函数，接受两个字符串参数返回bool，默认使用精确匹配
-            force_refresh (bool): 是否强制刷新缓存
+            title (str): Title string to search for
+            match_func (Callable): Matching function that takes two string parameters and returns bool, defaults to exact match
+            force_refresh (bool): Whether to force refresh cache
             
         Returns:
-            List[str]: 匹配的project_id列表
+            List[str]: List of matching project IDs
         """
+        # 验证project访问权限
+        self._validate_project_access()
+        
         from .utils import exact_match  # 避免循环导入
 
         if match_func is None:
