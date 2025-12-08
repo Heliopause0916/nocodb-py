@@ -5,6 +5,13 @@ NocoDB Project for Python
 This module provides a project class to interact with NocoDB project-specific API
 """
 
+# pylint: disable=unused-import
+# pylint: disable=too-many-instance-attributes
+# pylint: disable=trailing-whitespace
+# pylint: disable=too-many-public-methods
+# pylint: disable=line-too-long
+# pylint: disable=import-outside-toplevel
+
 import time
 import threading
 from typing import Dict, List, Any, Optional, Callable
@@ -15,9 +22,6 @@ from .client import NocoDBClient
 if TYPE_CHECKING:
     from .table import NocoDBTable
 
-# pylint: disable=too-many-instance-attributes
-# pylint: disable=trailing-whitespace
-# pylint: disable=line-too-long
 class NocoDBProject:
     """
     A class representing a NocoDB project with project-specific operations

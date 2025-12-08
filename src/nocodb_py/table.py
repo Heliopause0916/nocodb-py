@@ -4,6 +4,13 @@ Filename: src/nocodb_py/table.py
 NocoDB Table for Python
 """
 
+# pylint: disable=unused-import
+# pylint: disable=too-many-instance-attributes
+# pylint: disable=trailing-whitespace
+# pylint: disable=too-many-public-methods
+# pylint: disable=line-too-long
+# pylint: disable=import-outside-toplevel
+
 import time
 import threading
 from typing import Dict, List, Any, Optional, Union

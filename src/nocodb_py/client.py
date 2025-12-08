@@ -6,6 +6,11 @@ This module provides a client class to interact with NocoDB API
 """
 
 # pylint: disable=unused-import
+# pylint: disable=too-many-instance-attributes
+# pylint: disable=trailing-whitespace
+# pylint: disable=too-many-public-methods
+# pylint: disable=line-too-long
+# pylint: disable=import-outside-toplevel
 
 import time
 import threading
@@ -18,12 +23,6 @@ if TYPE_CHECKING:
     from .project import NocoDBProject
     from .workspace import NocoDBWorkspace
 
-
-# pylint: disable=too-many-instance-attributes
-# pylint: disable=trailing-whitespace
-# pylint: disable=too-many-public-methods
-# pylint: disable=line-too-long
-# pylint: disable=import-outside-toplevel
 class NocoDBClient:
     """
     A client class for interacting with NocoDB API
@@ -226,6 +225,30 @@ class NocoDBClient:
         response.raise_for_status()
         return response.json()
 
+    def _post(self, path: str, data: Optional[Dict] = None, **kwargs) -> Dict:
+        """
+        Send a POST request to the NocoDB API
+        
+        Args:
+            path (str): The API endpoint path
+            data (Optional[Dict]): The data to send in the request body
+            **kwargs: Additional arguments to pass to requests.post
+            
+        Returns:
+            Dict: The JSON response from the API
+            
+        Raises:
+            requests.exceptions.RequestException: If the request fails
+        """
+        url = f"{self._base_url}{path}"
+        headers = {"xc-token": self._xc_token}
+        if 'headers' in kwargs:
+            headers.update(kwargs['headers'])
+            del kwargs['headers']
+        response = requests.post(url, headers=headers, json=data, timeout=self._timeout, **kwargs)
+        response.raise_for_status()
+        return response.json()
+    
     def get_full_info(self, force_refresh: bool = False) -> Dict:
         """
         Get NocoDB instance information from /api/v1/db/meta/nocodb/info
