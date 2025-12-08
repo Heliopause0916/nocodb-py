@@ -23,15 +23,15 @@ graph TD
 ## 源代码路径
 
 ### 主要模块
-- [`src/nocodb_py/client.py`](src/nocodb_py/client.py:1) - 主客户端类，处理基础API调用和缓存
-- [`src/nocodb_py/workspace.py`](src/nocodb_py/workspace.py:1) - 工作区管理类（云实例专用）
-- [`src/nocodb_py/project.py`](src/nocodb_py/project.py:1) - 项目管理类
-- [`src/nocodb_py/table.py`](src/nocodb_py/table.py:1) - 表格管理类
-- [`src/nocodb_py/utils.py`](src/nocodb_py/utils.py:1) - 工具函数
-- [`src/nocodb_py/variable.py`](src/nocodb_py/variable.py:1) - 配置变量
+- [`src/nocodb_py/client.py`](../../../src/nocodb_py/client.py) - 主客户端类，处理基础API调用和缓存
+- [`src/nocodb_py/workspace.py`](../../../src/nocodb_py/workspace.py) - 工作区管理类（云实例专用）
+- [`src/nocodb_py/project.py`](../../../src/nocodb_py/project.py) - 项目管理类
+- [`src/nocodb_py/table.py`](../../../src/nocodb_py/table.py) - 表格管理类
+- [`src/nocodb_py/utils.py`](../../../src/nocodb_py/utils.py) - 工具函数
+- [`src/nocodb_py/variable.py`](../../../src/nocodb_py/variable.py) - 配置变量
 
 ### 入口点
-- [`src/nocodb_py/__init__.py`](src/nocodb_py/__init__.py:1) - 包初始化，导出核心类
+- [`src/nocodb_py/__init__.py`](../../../src/nocodb_py/__init__.py) - 包初始化，导出核心类
 
 ## 关键技术决策
 
