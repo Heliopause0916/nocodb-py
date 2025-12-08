@@ -15,7 +15,7 @@ graph TD
 ```
 
 ### 核心类关系
-- **NocoDBClient**: 顶层客户端，管理基础连接和认证
+- **NocoDBClient**: 顶层客户端，管理项目连接和认证
 - **NocoDBWorkspace**: 工作区管理（仅限云实例）
 - **NocoDBProject**: 项目管理，包含表格操作
 - **NocoDBTable**: 表格管理，包含列和数据操作
@@ -54,13 +54,13 @@ graph TD
 - 适应V2 API的错误响应格式
 
 ### V2 API功能支持
-- **基础管理**：完整的CRUD操作，支持自托管和云实例
+- **项目管理**：完整的CRUD操作，支持自托管和云实例
 - **表格管理**：表格创建、元数据获取、更新和删除
 - **视图管理**：网格视图、表单视图、画廊视图、看板视图
 - **列操作**：列创建、更新、删除、主值设置
 - **过滤器和排序**：视图级别的条件过滤和排序规则
 - **数据源管理**：多数据源支持和管理
-- **用户和权限**：基础用户管理和角色分配
+- **用户和权限**：项目用户管理和角色分配
 - **评论系统**：行级别评论功能
 - **Webhooks**：表钩子管理和事件触发
 - **API令牌**：令牌创建和管理
@@ -134,7 +134,7 @@ graph TD
     A[V2 API支持] --> B[元数据管理]
     A --> C[数据操作]
     
-    B --> B1[基础管理]
+    B --> B1[项目管理]
     B --> B2[表格管理]
     B --> B3[视图管理]
     B --> B4[列操作]
@@ -149,11 +149,11 @@ graph TD
     C --> C2[链接记录]
     C --> C3[附件管理]
     
-    B1 --> B11[列表基础]
-    B1 --> B12[创建基础]
-    B1 --> B13[获取基础]
-    B1 --> B14[更新基础]
-    B1 --> B15[删除基础]
+    B1 --> B11[列表项目]
+    B1 --> B12[创建项目]
+    B1 --> B13[获取项目]
+    B1 --> B14[更新项目]
+    B1 --> B15[删除项目]
     
     B2 --> B21[列表表格]
     B2 --> B22[创建表格]
@@ -181,7 +181,7 @@ graph TD
 ### API端点映射
 
 #### 元数据API端点 (`/api/v2/meta/`)
-- **基础操作**：`/api/v2/meta/bases/` 和 `/api/v2/meta/workspaces/{workspaceId}/bases/`
+- **项目操作**：`/api/v2/meta/bases/` 和 `/api/v2/meta/workspaces/{workspaceId}/bases/`
 - **表格操作**：`/api/v2/meta/bases/{baseId}/tables` 和 `/api/v2/meta/tables/{tableId}`
 - **视图操作**：`/api/v2/meta/tables/{tableId}/views` 和 `/api/v2/meta/views/{viewId}`
 - **列操作**：`/api/v2/meta/tables/{tableId}/columns` 和 `/api/v2/meta/columns/{columnId}`
