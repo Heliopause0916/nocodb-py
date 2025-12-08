@@ -5,6 +5,8 @@ NocoDB Client for Python
 This module provides a client class to interact with NocoDB API
 """
 
+# pylint: disable=unused-import
+
 import time
 import threading
 from typing import Dict, List, Any, Optional, Callable
@@ -429,6 +431,65 @@ class NocoDBClient:
                              **kwargs)
 
     get_base = get_project
+
+    def get_project_title(self, project_id: str, force_refresh: bool = False) -> str:
+        """
+        Get project title by project ID
+        
+        Args:
+            project_id (str): Project ID
+            force_refresh (bool): Whether to force refresh cache
+            
+        Returns:
+            str: Project title
+            
+        Raises:
+            ValueError: When project is not found or title is empty
+        """
+        projects = self.list_projects(force_refresh=force_refresh)
+        if projects is None:
+            raise ValueError("Failed to get project list")
+            
+        for project in projects:
+            if project.get("id") == project_id:
+                title = project.get("title")
+                if title is not None:
+                    return title
+                raise ValueError(f"Project {project_id} has empty title")
+                
+        raise ValueError(f"Project with ID {project_id} not found")
+
+    get_base_title = get_project_title
+
+    def get_workspace_title(self, workspace_id: str, force_refresh: bool = False) -> str:
+        """
+        Get workspace title by workspace ID
+
+        Args:
+            workspace_id (str): Workspace ID
+            force_refresh (bool): Whether to force refresh cache
+            
+        Returns:
+            str: Workspace title
+            
+        Raises:
+            ValueError: When workspace is not found or title is empty
+        """
+        if not self.is_cloud():
+            raise ValueError("Workspace operations are only supported for cloud instances")
+            
+        workspaces = self.list_workspaces(force_refresh=force_refresh)
+        if workspaces is None:
+            raise ValueError("Failed to get workspace list")
+            
+        for workspace in workspaces:
+            if workspace.get("id") == workspace_id:
+                title = workspace.get("title")
+                if title is not None:
+                    return title
+                raise ValueError(f"Workspace {workspace_id} has empty title")
+                
+        raise ValueError(f"Workspace with ID {workspace_id} not found")
 
     def get_meta_v2_prefix(self) -> str:
         """

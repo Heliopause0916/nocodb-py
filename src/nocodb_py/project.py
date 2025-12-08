@@ -199,6 +199,33 @@ class NocoDBProject:
                 ]
         return tables_list
 
+    def get_table_title(self, table_id: str, force_refresh: bool = False) -> str:
+        """
+        Get table title by table ID
+
+        Args:
+            table_id (str): Table ID
+            force_refresh (bool): Whether to force refresh cache
+            
+        Returns:
+            str: Table title
+            
+        Raises:
+            ValueError: When table is not found or title is empty
+        """
+        tables = self.list_tables(force_refresh=force_refresh)
+        if not tables:
+            raise ValueError("Failed to get table list")
+            
+        for table in tables:
+            if table.get("id") == table_id:
+                title = table.get("title")
+                if title is not None:
+                    return title
+                raise ValueError(f"Table {table_id} has empty title")
+                
+        raise ValueError(f"Table with ID {table_id} not found")
+
     def count_tables(self, force_refresh: bool = False) -> Optional[int]:
         """
         Count the number of tables in the project
