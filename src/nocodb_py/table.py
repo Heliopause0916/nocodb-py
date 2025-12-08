@@ -140,6 +140,80 @@ class NocoDBTable:
         response.raise_for_status()
         return response.json()
 
+    def _delete(self, path: str, **kwargs) -> Dict:
+        """
+        Send a DELETE request to the NocoDB API
+        
+        Args:
+            path (str): The API endpoint path
+            **kwargs: Additional arguments to pass to requests.delete
+            
+        Returns:
+            Dict: The JSON response from the API
+            
+        Raises:
+            requests.exceptions.RequestException: If the request fails
+        """
+        url = f"{self._project.get_client().get_base_url()}{path}"
+        headers = {"xc-token": self._xc_token}
+        if 'headers' in kwargs:
+            headers.update(kwargs['headers'])
+            del kwargs['headers']
+
+        response = requests.delete(url, headers=headers, timeout=self._timeout, **kwargs)
+        response.raise_for_status()
+        return response.json()
+
+    def _patch(self, path: str, data: Optional[Dict] = None, **kwargs) -> Dict:
+        """
+        Send a PATCH request to the NocoDB API
+        
+        Args:
+            path (str): The API endpoint path
+            data (Optional[Dict]): The data to send in the request body
+            **kwargs: Additional arguments to pass to requests.patch
+            
+        Returns:
+            Dict: The JSON response from the API
+            
+        Raises:
+            requests.exceptions.RequestException: If the request fails
+        """
+        url = f"{self._project.get_client().get_base_url()}{path}"
+        headers = {"xc-token": self._xc_token}
+        if 'headers' in kwargs:
+            headers.update(kwargs['headers'])
+            del kwargs['headers']
+
+        response = requests.patch(url, headers=headers, json=data, timeout=self._timeout, **kwargs)
+        response.raise_for_status()
+        return response.json()
+
+    def _post(self, path: str, data: Optional[Dict] = None, **kwargs) -> Dict:
+        """
+        Send a POST request to the NocoDB API
+        
+        Args:
+            path (str): The API endpoint path
+            data (Optional[Dict]): The data to send in the request body
+            **kwargs: Additional arguments to pass to requests.post
+            
+        Returns:
+            Dict: The JSON response from the API
+            
+        Raises:
+            requests.exceptions.RequestException: If the request fails
+        """
+        url = f"{self._project.get_client().get_base_url()}{path}"
+        headers = {"xc-token": self._xc_token}
+        if 'headers' in kwargs:
+            headers.update(kwargs['headers'])
+            del kwargs['headers']
+
+        response = requests.post(url, headers=headers, json=data, timeout=self._timeout, **kwargs)
+        response.raise_for_status()
+        return response.json()
+
     def get_full_info(self, force_refresh: bool = False) -> Dict:
         """
         Get the full info for the table
