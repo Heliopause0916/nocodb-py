@@ -249,7 +249,7 @@ class NocoDBClient:
         response.raise_for_status()
         return response.json()
 
-    def _delete(self, path: str, **kwargs) -> Dict:
+    def _delete(self, path: str, **kwargs) -> Any:
         """
         Send a DELETE request to the NocoDB API
         
@@ -704,3 +704,44 @@ class NocoDBClient:
         ]
 
     find_bases_by_title = find_projects_by_title
+
+    def clear_projects_cache(self) -> None:
+        """
+        Clear the projects cache to ensure fresh data after operations like delete
+        
+        Returns:
+            None
+        """
+        with self._cache_lock:
+            self._projects_cache = None
+            self._projects_timeout = 0
+
+    def delete_project(self, project_id: str) -> Dict:
+        """
+        Delete a project by project ID
+        
+        Args:
+            project_id (str): The project ID to delete
+            
+        Returns:
+            Dict: The JSON response from the API
+            
+        Raises:
+            requests.exceptions.RequestException: If the HTTP request fails
+            ValueError: When project access validation fails
+        """
+        # 验证project访问权限
+        self._validate_project_access()
+        
+        # 构建API路径
+        path = f"{self.get_meta_v2_prefix()}/bases/{project_id}"
+        
+        # 发送DELETE请求
+        response = self._delete(path)
+        
+        # 清除项目缓存以确保后续操作获取最新数据
+        self.clear_projects_cache()
+        
+        return response
+
+    delete_base = delete_project
