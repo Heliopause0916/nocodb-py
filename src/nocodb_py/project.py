@@ -288,3 +288,5 @@ class NocoDBProject:
             table["id"] for table in tables
             if match_func(title, table.get("title", ""))
         ]
+
+NocoDBBase = NocoDBProject
