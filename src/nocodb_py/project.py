@@ -103,6 +103,8 @@ class NocoDBProject:
             str: The project ID
         """
         return self._project_id
+    
+    get_id = get_project_id
 
     def get_client(self) -> NocoDBClient:
         """

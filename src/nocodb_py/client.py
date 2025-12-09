@@ -716,20 +716,57 @@ class NocoDBClient:
             self._projects_cache = None
             self._projects_timeout = 0
 
-    def delete_project(self, project_id: str) -> Dict:
+    def _extract_project_id(self, project: Union[str, 'NocoDBProject']) -> str:
         """
-        Delete a project by project ID
+        从字符串或NocoDBProject对象中提取project_id
         
         Args:
-            project_id (str): The project ID to delete
+            project (Union[str, NocoDBProject]): 项目ID字符串或NocoDBProject对象
             
         Returns:
-            Dict: The JSON response from the API
+            str: 提取的project_id字符串
             
         Raises:
-            requests.exceptions.RequestException: If the HTTP request fails
-            ValueError: When project access validation fails
+            TypeError: 当参数类型不是str或NocoDBProject时
         """
+        if isinstance(project, str):
+            return project
+        else:
+            # 延迟导入以避免循环导入
+            from .project import NocoDBProject
+            if isinstance(project, NocoDBProject):
+                return project.get_project_id()
+            else:
+                raise TypeError(
+                    f"参数类型必须是str或NocoDBProject，实际类型为{type(project)}"
+                )
+
+    def delete_project(self, project: Union[str, 'NocoDBProject']) -> Dict:
+        """
+        删除项目，支持项目ID字符串或NocoDBProject对象
+        
+        Args:
+            project (Union[str, NocoDBProject]): 项目ID字符串或NocoDBProject对象实例
+            
+        Returns:
+            Dict: API删除操作的JSON响应
+            
+        Raises:
+            requests.exceptions.RequestException: HTTP请求失败
+            ValueError: 项目访问验证失败
+            TypeError: 参数类型错误
+            
+        Example:
+            # 使用项目ID字符串
+            client.delete_project("proj_123")
+            
+            # 使用NocoDBProject对象
+            project_obj = client.get_project("proj_123")
+            client.delete_project(project_obj)
+        """
+        # 提取project_id
+        project_id = self._extract_project_id(project)
+        
         # 验证project访问权限
         self._validate_project_access()
         

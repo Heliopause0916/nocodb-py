@@ -101,6 +101,8 @@ class NocoDBTable:
             str: The table ID
         """
         return self._table_id
+    
+    get_id = get_table_id
 
     def get_project(self) -> NocoDBProject:
         """

@@ -110,6 +110,8 @@ class NocoDBWorkspace(NocoDBClient):
             str: The workspace ID
         """
         return self._workspace_id
+    
+    get_id = get_workspace_id  # Alias for get_workspace_id
 
     def get_meta_v2_prefix(self) -> str:
         """
