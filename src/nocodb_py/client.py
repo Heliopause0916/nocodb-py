@@ -633,7 +633,9 @@ class NocoDBClient:
             data["description"] = description
             
         response = self._post(path, data=data)
-        
+
+        self.clear_projects_cache()
+
         if return_type == 'object':
             project_id = response.get('id')
             if project_id is None:
