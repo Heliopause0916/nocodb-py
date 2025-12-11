@@ -34,20 +34,6 @@ class NocoDBClient:
 
     CACHE_FOREVER = None
 
-    _base_url = ""
-    _xc_token = ""
-    _timeout = 0
-    _cache_ttl = 0
-
-    _nocodb_info_cache = None
-    _nocodb_info_timestamp = 0
-    _projects_cache = None
-    _projects_timeout = 0
-    _workspaces_cache = None
-    _workspaces_timeout = 0
-
-    _cache_lock = threading.RLock()
-
     def __init__(self, base_url: str, xc_token: str,
                 cache_ttl: Optional[int] = 300,
                 timeout = 10
