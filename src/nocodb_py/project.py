@@ -369,4 +369,20 @@ class NocoDBProject:
             if match_func(title, table.get("title", ""))
         ]
 
+    def clear_project_info_cache(self):
+        """
+        Clear project info cache
+        """
+        with self._cache_lock:
+            self._project_info_cache = None
+            self._project_info_timestamp = 0
+
+    def clear_tables_cache(self):
+        """
+        Clear tables cache
+        """
+        with self._cache_lock:
+            self._tables_cache = None
+            self._tables_timestamp = 0
+
 NocoDBBase = NocoDBProject

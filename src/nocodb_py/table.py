@@ -296,3 +296,19 @@ class NocoDBTable:
         if isinstance(column_list, List):
             return len(column_list)
         return 0
+
+    def clear_table_info_cache(self):
+        """
+        Clear table info cache
+        """
+        with self._cache_lock:
+            self._table_info_cache = None
+            self._table_info_timestamp = 0
+
+    def clear_columns_cache(self):
+        """
+        Clear columns cache
+        """
+        with self._cache_lock:
+            self._columns_cache = None
+            self._columns_timestamp = 0

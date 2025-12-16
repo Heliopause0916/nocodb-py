@@ -201,6 +201,22 @@ class NocoDBClient:
         # return self._cache_ttl_policies.get(cache_key, self._default_cache_ttl)
         return self._cache_ttl
 
+    def clear_workspaces_cache(self):
+        """
+        Clear workspaces cache
+        """
+        with self._cache_lock:
+            self._workspaces_cache = None
+            self._workspaces_timeout = 0
+
+    def clear_projects_cache(self):
+        """
+        Clear projects cache
+        """
+        with self._cache_lock:
+            self._projects_cache = None
+            self._projects_timeout = 0
+
     def _get(self, path: str, **kwargs) -> Dict:
         url = f"{self._base_url}{path}"
         headers = {"xc-token": self._xc_token}
@@ -692,17 +708,6 @@ class NocoDBClient:
         ]
 
     find_bases_by_title = find_projects_by_title
-
-    def clear_projects_cache(self) -> None:
-        """
-        Clear the projects cache to ensure fresh data after operations like delete
-        
-        Returns:
-            None
-        """
-        with self._cache_lock:
-            self._projects_cache = None
-            self._projects_timeout = 0
 
     def _extract_project_id(self, project: Union[str, 'NocoDBProject']) -> str:
         """
