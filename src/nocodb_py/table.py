@@ -14,11 +14,13 @@ NocoDB Table for Python
 import time
 import threading
 from typing import Dict, List, Any, Optional, Union
+from typing import TYPE_CHECKING
 import requests
 from .utils import parse_utc_datetime, count_of_nocodb_data
 from .client import NocoDBClient
 from .project import NocoDBProject
-
+if TYPE_CHECKING:
+    from .column import NocoDBColumn
 # pylint: disable=too-many-instance-attributes
 class NocoDBTable:
     """
@@ -296,6 +298,29 @@ class NocoDBTable:
         if isinstance(column_list, List):
             return len(column_list)
         return 0
+
+    def get_column(self, column_id: str) -> 'NocoDBColumn':
+        """
+        Get a column object by column ID
+        
+        Args:
+            column_id (str): The column ID to get
+            
+        Returns:
+            NocoDBColumn: The column object
+            
+        Note:
+            This method does not validate if the column exists and does not use cache.
+            It directly creates a NocoDBColumn instance with the provided column ID.
+        """
+        from .column import NocoDBColumn
+        return NocoDBColumn(
+            table=self,
+            column_id=column_id,
+            xc_token=self._xc_token,
+            timeout=self._timeout,
+            cache_ttl=self._cache_ttl
+        )
 
     def clear_table_info_cache(self):
         """
