@@ -173,6 +173,7 @@ SDK自动处理这些特殊列，在创建/更新记录时过滤只读字段，�
 - 类型提示强制使用
 - 统一的代码风格
 - 遵循API设计最佳实践，确保V2 API兼容性
+- **文档字符串语言**: 所有文档字符串（docstring）必须使用英文编写，以确保代码库的一致性并便于国际协作。注释（comment）可以使用中文，但建议优先使用英文。
 
 ### 测试工作流
 - 激活虚拟环境: `.\venv\Scripts\Activate.ps1` (PowerShell) 或 `venv\Scripts\activate.bat` (CMD)

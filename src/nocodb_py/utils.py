@@ -12,22 +12,22 @@ This module provides utility functions for handling NocoDB data
 from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 
-# 支持的时间格式常量
+# Supported time format constants
 UTC_DATETIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 
-# UNIX 时间戳 0 对应的 UTC 时间
+# UTC time corresponding to UNIX timestamp 0
 EPOCH_ZERO = datetime.fromtimestamp(0, tz=timezone.utc)
 
 def parse_utc_datetime(value: Optional[str], format_str: str = UTC_DATETIME_FORMAT) -> datetime:
     """
-    解析UTC时间字符串为datetime对象
-    如果解析失败，则返回UNIX时间戳0对应的UTC时间
+    Parse UTC time string into a datetime object.
+    If parsing fails, returns UTC time corresponding to UNIX timestamp 0.
     
     Args:
-        value (Optional[str]): UTC时间字符串
+        value (Optional[str]): UTC time string
         
     Returns:
-        datetime: UTC时间对象，如果解析失败则返回UNIX时间戳0对应的UTC时间
+        datetime: UTC datetime object, returns UTC time corresponding to UNIX timestamp 0 if parsing fails
     """
 
     if not value:
@@ -40,25 +40,25 @@ def parse_utc_datetime(value: Optional[str], format_str: str = UTC_DATETIME_FORM
 
 def count_of_nocodb_data(nocodb_data: Optional[Dict]) -> Optional[int]:
     """
-    计算nocodb数据的条数
+    Count the number of NocoDB data items.
     
     Args:
-        nocodb_data (list): nocodb数据列表
+        nocodb_data (list): NocoDB data list
         
     Returns:
-        int: 数据条数，如果数据为空则返回None
+        int: Number of data items, returns None if data is empty
     """
     if not nocodb_data:
         return None
 
-    # 优先从 pageInfo 获取
+    # Priority: get from pageInfo
     page_info = nocodb_data.get("pageInfo")
     if isinstance(page_info, Dict):
         total_rows = page_info.get("totalRows")
         if total_rows is not None:
             return total_rows
 
-    # 备用方案：计算 list 长度
+    # Fallback: calculate list length
     list_data = nocodb_data.get("list")
     if isinstance(list_data, List):
         return len(list_data)
@@ -68,27 +68,27 @@ def count_of_nocodb_data(nocodb_data: Optional[Dict]) -> Optional[int]:
 
 def exact_match(search_text: str, target_text: str) -> bool:
     """
-    精确匹配：检查搜索文本是否完全等于目标文本（区分大小写）
+    Exact match: Check if search text exactly equals target text (case-sensitive).
     
     Args:
-        search_text (str): 搜索的文本
-        target_text (str): 目标文本
+        search_text (str): Text to search for
+        target_text (str): Target text
         
     Returns:
-        bool: 如果目标文本完全等于搜索文本（区分大小写）则返回True
+        bool: True if target text exactly equals search text (case-sensitive)
     """
     return search_text == target_text
 
 
 def fuzzy_match(search_text: str, target_text: str) -> bool:
     """
-    模糊匹配：检查搜索文本是否包含在目标文本中（不区分大小写）
+    Fuzzy match: Check if search text is contained within target text (case-insensitive).
     
     Args:
-        search_text (str): 搜索的文本
-        target_text (str): 目标文本
+        search_text (str): Text to search for
+        target_text (str): Target text
         
     Returns:
-        bool: 如果目标文本包含搜索文本（不区分大小写）则返回True
+        bool: True if target text contains search text (case-insensitive)
     """
     return search_text.lower() in target_text.lower()

@@ -344,18 +344,18 @@ class NocoDBProject:
 
     def find_tables_by_title(self, title: str, match_func :Optional[Callable[[str, str], bool]] =None, force_refresh: bool = False) -> list:
         """
-        通过title查找匹配的table_id列表
+        Find list of matching table_ids by title
         
         Args:
-            title (str): 搜索的title字符串
-            match_func (Callable): 匹配函数，接受两个字符串参数返回bool，默认使用精确匹配
-            force_refresh (bool): 是否强制刷新缓存
+            title (str): The title string to search for
+            match_func (Callable): Matching function, accepts two string arguments and returns bool, defaults to exact match
+            force_refresh (bool): Whether to force refresh the cache
             
         Returns:
-            List[str]: 匹配的table_id列表
+            List[str]: List of matching table_ids
         """
         # pylint: disable=import-outside-toplevel
-        from .utils import exact_match  # 避免循环导入
+        from .utils import exact_match  # Avoid circular import
         
         if match_func is None:
             match_func = exact_match

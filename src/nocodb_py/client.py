@@ -94,7 +94,7 @@ class NocoDBClient:
         Returns:
             int: Hash value based on immutable attributes
         """
-        # 只对用于相等性比较的不可变属性进行哈希
+        # Only hash immutable attributes used for equality comparison
         return hash((self._base_url, self._xc_token))
 
     def get_workspaces_full_info(self, force_refresh: bool = False) -> Optional[Dict]:
@@ -432,7 +432,7 @@ class NocoDBClient:
         is_cloud_instance = self.is_cloud()
         class_name = type(self).__name__
         
-        # 检查是否满足允许条件
+        # Check if allowed conditions are met
         allowed_conditions = [
             (is_cloud_instance and class_name == "NocoDBWorkspace"),
             (not is_cloud_instance and class_name == "NocoDBClient")
@@ -454,7 +454,7 @@ class NocoDBClient:
         Returns:
             dict: Projects data
         """
-        # 验证project访问权限
+        # Validate project access permissions
         self._validate_project_access()
         
         return self.get_projects_full_info_backend(force_refresh=force_refresh)
@@ -469,7 +469,7 @@ class NocoDBClient:
         Returns:
             dict: Projects list
         """
-        # 验证project访问权限
+        # Validate project access permissions
         self._validate_project_access()
         
         projects_data = self.get_projects_full_info(force_refresh= force_refresh)
@@ -507,7 +507,7 @@ class NocoDBClient:
         Returns:
             int: The number of projects
         """
-        # 验证project访问权限
+        # Validate project access permissions
         self._validate_project_access()
         
         projects = self.get_projects_full_info(force_refresh=force_refresh)
@@ -552,7 +552,7 @@ class NocoDBClient:
         Raises:
             ValueError: When project is not found or title is empty
         """
-        # 验证project访问权限
+        # Validate project access permissions
         self._validate_project_access()
         
         projects = self.list_projects(force_refresh=force_refresh)
@@ -641,7 +641,7 @@ class NocoDBClient:
         if return_type == 'object':
             project_id = response.get('id')
             if project_id is None:
-                raise ValueError("响应中未包含项目ID")
+                raise ValueError("Project ID not included in response")
             # pylint: disable=import-outside-toplevel
             from .project import NocoDBProject
             project_obj = NocoDBProject(self, project_id, self._xc_token,
@@ -650,7 +650,7 @@ class NocoDBClient:
         elif return_type == 'json':
             return response
         else:
-            raise ValueError(f"无效的return_type参数: {return_type}。可选值: 'json' 或 'object'")
+            raise ValueError(f"Invalid return_type argument: {return_type}. Options: 'json' or 'object'")
 
     def find_workspaces_by_title(self, title: str, match_func: Optional[Callable[[str, str], bool]] =None, force_refresh: bool = False) -> list:
         """
@@ -664,7 +664,7 @@ class NocoDBClient:
         Returns:
             List[str]: List of matching workspace IDs
         """
-        from .utils import exact_match  # 避免循环导入
+        from .utils import exact_match  # Avoid circular import
 
         if match_func is None:
             match_func = exact_match
@@ -690,10 +690,10 @@ class NocoDBClient:
         Returns:
             List[str]: List of matching project IDs
         """
-        # 验证project访问权限
+        # Validate project access permissions
         self._validate_project_access()
-        
-        from .utils import exact_match  # 避免循环导入
+
+        from .utils import exact_match  # Avoid circular import
 
         if match_func is None:
             match_func = exact_match
@@ -711,65 +711,65 @@ class NocoDBClient:
 
     def _extract_project_id(self, project: Union[str, 'NocoDBProject']) -> str:
         """
-        从字符串或NocoDBProject对象中提取project_id
+        Extract project_id from string or NocoDBProject object
         
         Args:
-            project (Union[str, NocoDBProject]): 项目ID字符串或NocoDBProject对象
+            project (Union[str, NocoDBProject]): Project ID string or NocoDBProject object
             
         Returns:
-            str: 提取的project_id字符串
+            str: Extracted project_id string
             
         Raises:
-            TypeError: 当参数类型不是str或NocoDBProject时
+            TypeError: When argument type is not str or NocoDBProject
         """
         if isinstance(project, str):
             return project
         else:
-            # 延迟导入以避免循环导入
+            # Lazy import to avoid circular import
             from .project import NocoDBProject
             if isinstance(project, NocoDBProject):
                 return project.get_project_id()
             else:
                 raise TypeError(
-                    f"参数类型必须是str或NocoDBProject，实际类型为{type(project)}"
+                    f"Argument type must be str or NocoDBProject, actual type is {type(project)}"
                 )
 
     def delete_project(self, project: Union[str, 'NocoDBProject']) -> Dict:
         """
-        删除项目，支持项目ID字符串或NocoDBProject对象
+        Delete a project, supports project ID string or NocoDBProject object
         
         Args:
-            project (Union[str, NocoDBProject]): 项目ID字符串或NocoDBProject对象实例
+            project (Union[str, NocoDBProject]): Project ID string or NocoDBProject object instance
             
         Returns:
-            Dict: API删除操作的JSON响应
+            Dict: JSON response from API delete operation
             
         Raises:
-            requests.exceptions.RequestException: HTTP请求失败
-            ValueError: 项目访问验证失败
-            TypeError: 参数类型错误
+            requests.exceptions.RequestException: HTTP request failed
+            ValueError: Project access validation failed
+            TypeError: Argument type error
             
         Example:
-            # 使用项目ID字符串
+            # Use project ID string
             client.delete_project("proj_123")
             
-            # 使用NocoDBProject对象
+            # Use NocoDBProject object
             project_obj = client.get_project("proj_123")
             client.delete_project(project_obj)
         """
-        # 提取project_id
+        # Extract project_id
         project_id = self._extract_project_id(project)
         
-        # 验证project访问权限
+        # Validate project access permissions
         self._validate_project_access()
         
-        # 构建API路径
+        # Build API path
         path = f"{self.get_meta_v2_prefix()}/bases/{project_id}"
         
-        # 发送DELETE请求
+        # Send DELETE request
         response = self._delete(path)
         
-        # 清除项目缓存以确保后续操作获取最新数据
+        # Clear project cache to ensure subsequent operations get latest data
         self.clear_projects_cache()
         
         return response
