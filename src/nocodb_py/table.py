@@ -21,6 +21,16 @@ from .client import NocoDBClient
 from .project import NocoDBProject
 if TYPE_CHECKING:
     from .column import NocoDBColumn
+
+class RecordNotFoundError(Exception):
+    """Exception raised when a record is not found in the table."""
+    
+    def __init__(self, table_id: str, record_id: int, original_error: Exception):
+        self.table_id = table_id
+        self.record_id = record_id
+        self.original_error = original_error
+        super().__init__(f"Record with ID {record_id} not found in table {table_id}")
+
 # pylint: disable=too-many-instance-attributes
 class NocoDBTable:
     """
@@ -348,3 +358,65 @@ class NocoDBTable:
         path = f"{self.get_data_v2_prefix()}/records"
         response = self._get(path)
         return response.get("list", [])
+    
+    def count_records(self) -> int:
+        """
+        Count the number of records in the table.
+        
+        Returns:
+            int: The number of records in the table.
+            
+        Raises:
+            requests.exceptions.RequestException: If the API request fails.
+            ValueError: If the API response format is invalid.
+            
+        Example:
+            >>> table.count_records()
+            42
+            
+        Note:
+            API response format: {"count": 1}
+        """
+        path = f"{self.get_data_v2_prefix()}/records/count"
+        response = self._get(path)
+        
+        # Validate response format
+        if not isinstance(response, dict):
+            raise ValueError(f"Invalid API response format: expected dict, got {type(response)}")
+            
+        count = response.get("count")
+        if count is None:
+            raise ValueError("Missing 'count' field in API response")
+            
+        if not isinstance(count, (int, float)):
+            raise ValueError(f"Invalid count type: expected number, got {type(count)}")
+            
+        return int(count)
+
+    def get_record(self, record_id:int) -> Optional[Dict]:
+        """
+        Get a single record from the table by its ID.
+        
+        Args:
+            record_id (int): The record ID to retrieve
+            
+        Returns:
+            Optional[Dict]: The record data as a dictionary if found
+            
+        Raises:
+            RecordNotFoundError: If the record with the specified ID does not exist
+            requests.exceptions.HTTPError: For other HTTP errors (e.g., 500 Internal Server Error)
+            
+        Example:
+            >>> record = table.get_record(123)
+            >>> print(record)
+            {'Id': 123, 'title': 'Sample Record', 'created_at': '2023-01-01T00:00:00Z'}
+        """
+        try:
+            path = f"{self.get_data_v2_prefix()}/records/{record_id}"
+            response = self._get(path)
+            return response
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                raise RecordNotFoundError(self._table_id, record_id, e) from e
+            raise
