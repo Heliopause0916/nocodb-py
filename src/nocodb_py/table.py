@@ -375,9 +375,9 @@ class NocoDBTable:
             self._columns_cache = None
             self._columns_timestamp = 0
 
-    def get_records(self) -> List[Dict]:
+    def list_records(self) -> List[Dict]:
         """
-        Get all records from the table.
+        List all records from the table.
         
         Returns:
             List[Dict]: A list of records, each record is a dictionary.
@@ -385,6 +385,8 @@ class NocoDBTable:
         path = f"{self.get_data_v2_prefix()}/records"
         response = self._get(path)
         return response.get("list", [])
+    
+    get_records = list_records
     
     def count_records(self) -> int:
         """
