@@ -12,11 +12,17 @@ NocoDB Python SDK 基于现代Python技术栈构建，注重类型安全、性�
 ### 核心依赖
 - **requests 2.25.0+**: HTTP客户端库，处理API调用
 - **threading**: 内置线程安全机制，支持并发缓存访问
+- **python-dotenv 1.0.0+**: 环境变量加载（测试专用，开发依赖）
 
 ### 开发工具
 - **setuptools**: 包管理和构建工具
 - **setuptools-scm**: 自动版本管理
 - **pylint**: 代码质量检查（已配置）
+- **pytest 7.0+**: 测试框架
+- **pytest-cov 4.0+**: 测试覆盖率检查
+- **black 23.0+**: 代码格式化
+- **ruff 0.0.285+**: 代码质量检查
+- **types-requests**: 类型提示支持
 
 ## 开发环境设置
 
@@ -88,9 +94,11 @@ nocodb-py/
 - 支持元数据管理和数据操作两大模块分离
 
 ### 测试策略
-- 使用环境变量配置测试实例
+- 使用环境变量配置测试实例（通过python-dotenv加载）
 - 支持自托管和云实例测试
-- 基础测试框架已搭建，包含项目创建测试
+- 完整的测试框架已配置，包含9个集成测试用例
+- 使用pytest作为测试运行器，支持测试覆盖率检查
+- 测试环境验证通过，环境变量加载正常
 - 计划增加V2 API端点的集成测试
 - 覆盖元数据API和数据操作API的完整测试
 - 当前测试覆盖V2 API基础功能，但完整功能覆盖率有待提高
@@ -139,11 +147,24 @@ nocodb-py/
 
 ## 开发工作流
 
+### 依赖管理
+- **主依赖安装**: `pip install -e .`
+- **开发依赖安装**: `pip install -e .[dev]`
+- **开发依赖包含**: pytest, pytest-cov, black, ruff, types-requests, python-dotenv
+- **虚拟环境**: 使用`.venv/`目录，已配置完整开发环境
+
 ### 代码质量
-- 使用pylint进行代码检查
+- 使用pylint和ruff进行代码检查
+- 使用black进行代码格式化
 - 类型提示强制使用
 - 统一的代码风格
 - 遵循API设计最佳实践，确保V2 API兼容性
+
+### 测试工作流
+- 激活虚拟环境: `.\venv\Scripts\Activate.ps1` (PowerShell) 或 `venv\Scripts\activate.bat` (CMD)
+- 运行测试: `python -m pytest tests/`
+- 检查覆盖率: `pytest --cov=nocodb_py tests/`
+- 环境验证: 通过`tests/.env`文件配置测试环境变量
 
 ### 文档策略
 - 提供中英文README文档
@@ -151,3 +172,4 @@ nocodb-py/
 - API参考文档
 - 更新文档以包含V2 API使用示例
 - 添加记录操作使用指南和列类型约束说明
+- 虚拟环境设置指南 (`docs/VENV_SETUP.md`)

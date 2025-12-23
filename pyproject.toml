@@ -29,11 +29,12 @@ where = ["src"]
 include = ["nocodb_py*"]
 
 # 开发依赖（单独分组）
-# [project.optional-dependencies]
-# dev = [
-#     "pytest>=7.0",
-#     "pytest-cov>=4.0",
-#     "black>=23.0",
-#     "ruff>=0.0.285",
-#     "types-requests>=0.0"
-# ]
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "black>=23.0",
+    "ruff>=0.0.285",
+    "types-requests>=0.0",
+    "python-dotenv>=1.0.0"
+]
