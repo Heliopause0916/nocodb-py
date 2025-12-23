@@ -19,6 +19,7 @@ graph TD
 - **NocoDBWorkspace**: 工作区管理（仅限云实例）
 - **NocoDBProject**: 项目管理，包含表格操作
 - **NocoDBTable**: 表格管理，包含列和数据操作
+- **NocoDBColumn**: 列管理，包含列类型验证和转换功能
 
 ## 源代码路径
 
@@ -27,7 +28,7 @@ graph TD
 - [`src/nocodb_py/workspace.py`](../../../src/nocodb_py/workspace.py) - 工作区管理类（云实例专用）
 - [`src/nocodb_py/project.py`](../../../src/nocodb_py/project.py) - 项目管理类
 - [`src/nocodb_py/table.py`](../../../src/nocodb_py/table.py) - 表格管理类
-- [`src/nocodb_py/column.py`](../../../src/nocodb_py/column.py) - 列管理类（新增，功能待实现）
+- [`src/nocodb_py/column.py`](../../../src/nocodb_py/column.py) - 列管理类，包含列类型验证和转换功能
 - [`src/nocodb_py/utils.py`](../../../src/nocodb_py/utils.py) - 工具函数
 - [`src/nocodb_py/variable.py`](../../../src/nocodb_py/variable.py) - 配置变量
 
@@ -59,6 +60,7 @@ graph TD
 - **表格管理**：表格元数据获取功能已实现，创建、更新和删除功能待实现
 - **视图管理**：网格视图、表单视图、画廊视图、看板视图（待实现）
 - **列操作**：列管理框架已创建，基础列信息获取功能已实现，完整CRUD操作待实现
+- **数据操作**：记录CRUD操作、列类型验证系统、特殊类型处理（待实现，已有详细计划）
 - **过滤器和排序**：视图级别的条件过滤和排序规则（待实现）
 - **数据源管理**：多数据源支持和管理（待实现）
 - **用户和权限**：项目用户管理和角色分配（待实现）
@@ -72,6 +74,7 @@ graph TD
 - 客户端包含工作区和项目
 - 项目包含表格
 - 表格包含列和数据
+- 列包含类型验证和转换逻辑
 
 ### 策略模式
 - 不同的部署模式（自托管 vs 云实例）使用不同的API路径策略
@@ -126,6 +129,7 @@ sequenceDiagram
 - 工作区管理云实例的多租户隔离
 - 项目作为数据组织的核心单元
 - 表格作为数据存储和操作的基本单位
+- 列作为数据验证和类型转换的核心组件
 
 ## V2 API架构扩展
 
@@ -143,7 +147,7 @@ sequenceDiagram
   - 表格操作（创建、更新、删除）
   - 视图管理（网格、表单、画廊、看板视图）
   - 列操作（创建、更新、删除、主值设置）
-  - 数据操作（记录CRUD、链接记录、附件上传等）
+  - 数据操作（记录CRUD、链接记录、附件上传等） - **已有详细实施计划**
   - 过滤器、排序、Webhooks等高级功能
 
 ### 功能模块划分
@@ -166,6 +170,8 @@ graph TD
     C --> C1[记录CRUD]
     C --> C2[链接记录]
     C --> C3[附件管理]
+    C --> C4[列类型验证]
+    C --> C5[特殊类型处理]
     
     B1 --> B11[列表项目]
     B1 --> B12[创建项目]
@@ -194,6 +200,59 @@ graph TD
     C2 --> C21[列出链接]
     C2 --> C22[链接记录]
     C2 --> C23[取消链接]
+    
+    C4 --> C41[基础类型验证]
+    C4 --> C42[选择类型验证]
+    C4 --> C43[验证类型处理]
+    C4 --> C44[特殊类型处理]
+    
+    C5 --> C51[附件处理]
+    C5 --> C52[链接处理]
+    C5 --> C53[只读字段处理]
+    C5 --> C54[系统字段处理]
+```
+
+### 记录操作架构扩展
+
+#### 核心组件关系
+```mermaid
+graph TD
+    A[NocoDBTable] --> B[记录操作管理器]
+    B --> B1[列表记录]
+    B --> B2[获取记录]
+    B --> B3[创建记录]
+    B --> B4[更新记录]
+    B --> B5[删除记录]
+    B --> B6[统计记录]
+    B --> B7[链接记录操作]
+    
+    A --> C[列信息缓存]
+    C --> C1[列类型映射]
+    
+    D[NocoDBColumn] --> E[列类型处理器]
+    E --> E1[值验证器]
+    E --> E2[值转换器]
+    E --> E3[类型约束检查]
+    
+    B --> F[列验证集成]
+    F --> D
+    
+    G[特殊类型处理器] --> G1[附件处理]
+    G --> G2[链接处理]
+    G --> G3[只读字段处理]
+    
+    B --> G
+```
+
+#### 记录操作API端点映射
+```mermaid
+graph LR
+    A["记录操作"] --> A1["GET /api/v2/tables/{tableId}/records"]
+    A --> A2["GET /api/v2/tables/{tableId}/records/{recordId}"]
+    A --> A3["POST /api/v2/tables/{tableId}/records"]
+    A --> A4["PATCH /api/v2/tables/{tableId}/records/{recordId}"]
+    A --> A5["DELETE /api/v2/tables/{tableId}/records/{recordId}"]
+    A --> A6["GET /api/v2/tables/{tableId}/records/count"]
 ```
 
 ### API端点映射
