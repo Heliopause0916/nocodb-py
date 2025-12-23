@@ -774,4 +774,82 @@ class NocoDBClient:
         
         return response
 
+    def update_project(self, project: Union[str, 'NocoDBProject'],
+                      title: Optional[str] = None,
+                      order: Optional[int] = None,
+                      meta: Optional[Dict] = None,
+                      return_type: str = 'json') -> Union[Dict, 'NocoDBProject']:
+        """
+        Update a project, supports project ID string or NocoDBProject object
+        
+        Args:
+            project (Union[str, NocoDBProject]): Project ID string or NocoDBProject object instance
+            title (Optional[str]): New project title, optional
+            order (Optional[int]): New project order, optional
+            meta (Optional[Dict]): New project metadata, optional
+            return_type (str): Return type, 'json' returns JSON response, 'object' returns NocoDBProject object, default is 'json'
+            
+        Returns:
+            Union[Dict, NocoDBProject]:
+                - If return_type='json': Returns API JSON response
+                - If return_type='object': Returns NocoDBProject object
+                
+        Raises:
+            requests.exceptions.RequestException: HTTP request failed
+            ValueError: Project access validation failed or no update parameters provided
+            TypeError: Argument type error
+            
+        Example:
+            # Update project title using project ID
+            client.update_project("proj_123", title="New Project Title")
+            
+            # Update project using NocoDBProject object
+            project_obj = client.get_project("proj_123")
+            client.update_project(project_obj, title="Updated Title", order=2)
+        """
+        # Extract project_id
+        project_id = self._extract_project_id(project)
+        
+        # Validate project access permissions
+        self._validate_project_access()
+        
+        # Check if at least one update parameter is provided
+        if title is None and order is None and meta is None:
+            raise ValueError("At least one update parameter (title, order, or meta) must be provided")
+        
+        # Build update data
+        update_data = {}
+        if title is not None:
+            update_data["title"] = title
+        if order is not None:
+            update_data["order"] = order
+        if meta is not None:
+            update_data["meta"] = meta
+        
+        # Build API path
+        path = f"{self.get_meta_v2_prefix()}/bases/{project_id}"
+        
+        # Send PATCH request
+        response = self._patch(path, data=update_data)
+        
+        # Clear project cache to ensure subsequent operations get latest data
+        self.clear_projects_cache()
+        
+        # If project object was provided, also clear its specific cache
+        # pylint: disable=import-outside-toplevel
+        from .project import NocoDBProject
+        if isinstance(project, NocoDBProject):
+            project.clear_project_info_cache()
+        
+        if return_type == 'object':
+            project_obj = NocoDBProject(self, project_id, self._xc_token,
+                                       timeout=self._timeout, cache_ttl=self._cache_ttl)
+            return project_obj
+        elif return_type == 'json':
+            return response
+        else:
+            raise ValueError(f"Invalid return_type argument: {return_type}. Options: 'json' or 'object'")
+
+    update_base = update_project
+
     delete_base = delete_project
