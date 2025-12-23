@@ -75,6 +75,9 @@ class NocoDBColumnType(Enum):
     ROLLUP = "Rollup"
     LINKS = "Links"
     LINK_TO_ANOTHER_RECORD = "LinkToAnotherRecord"
+
+    # TODO: Handle this
+    FOREIGN_KEY = "ForeignKey"
     
     @classmethod
     def from_string(cls, type_str: str) -> 'NocoDBColumnType':
@@ -402,6 +405,31 @@ class NocoDBColumn:
             )
             self._column_info_timestamp = current_time
             return self._column_info_cache
+
+    def get_column_type(self, force_refresh: bool = False) -> NocoDBColumnType:
+        """
+        Get the column type as a NocoDBColumnType enum.
+        
+        This method encapsulates the core logic of converting the column's
+        type string from the API to a type-safe enum value.
+        
+        Args:
+            force_refresh (bool): Whether to force a refresh of the column info
+            
+        Returns:
+            NocoDBColumnType: The column type as an enum value
+            
+        Raises:
+            ValueError: If the column type is unknown
+            requests.exceptions.RequestException: If API request fails
+        """
+        column_info = self.get_full_info(force_refresh=force_refresh)
+        type_string = column_info.get('uidt', '')
+        
+        try:
+            return NocoDBColumnType.from_string(type_string)
+        except ValueError as e:
+            raise ValueError(f"Unknown column type '{type_string}' for column '{self._column_id}': {e}") from e
 
     def clear_column_info_cache(self):
         """
