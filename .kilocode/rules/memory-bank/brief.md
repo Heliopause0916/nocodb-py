@@ -4,7 +4,7 @@
 NocoDB Python SDK 是一个用于与NocoDB开源智能电子表格和无代码平台交互的Python客户端库。该项目基于Python 3.9+构建，提供类型提示支持，旨在为开发者提供简单易用的API来管理NocoDB实例。
 
 ## 2. 项目的高级概述
-该SDK采用分层架构设计，包含四个核心类：NocoDBClient（主客户端）、NocoDBWorkspace（工作区）、NocoDBProject（项目）和NocoDBTable（表）。支持自托管实例和云实例两种部署模式，内置缓存机制以提高性能，提供完整的工作区、项目和表操作管理功能。基于NocoDB API V2 Meta文档，SDK将扩展对V2 API的全面支持。
+该SDK采用分层架构设计，包含四个核心类：NocoDBClient（主客户端）、NocoDBWorkspace（工作区）、NocoDBProject（项目）和NocoDBTable（表）。支持自托管实例和云实例两种部署模式，内置缓存机制以提高性能，提供完整的工作区、项目和表操作管理功能。基于NocoDB API V2 Meta文档，SDK将扩展对V2 API的全面支持，特别关注记录操作功能和列类型验证系统，包括对系统列、用户定义只读列和链接列的特殊处理。
 
 ## 3. 核心需求和目标
 - 提供完整的Python客户端接口，简化与NocoDB API的集成
@@ -14,3 +14,4 @@ NocoDB Python SDK 是一个用于与NocoDB开源智能电子表格和无代码�
 - 兼容自托管和云部署的NocoDB实例
 - 保持API的灵活性和可扩展性，适应NocoDB平台的演进
 - 全面支持NocoDB V2 API功能，包括项目管理、表格操作、视图管理、列操作等
+- 智能处理特殊列类型（系统列、用户定义只读列、链接列），简化开发者工作流

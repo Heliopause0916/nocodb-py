@@ -276,6 +276,65 @@ graph LR
 - **附件上传**：`/api/v2/storage/upload`
 - **记录统计**：`/api/v2/tables/{tableId}/records/count`
 
+## 列分类架构
+
+基于对NocoDB列模型的深入分析，识别出三类特殊列，这些列在记录操作中需要特殊处理：
+
+### 1. 系统列（System Columns）
+- **定义**：由NocoDB系统自动生成，值完全由系统控制，用户无法修改。
+- **特征**：
+  - `system` 字段值为 1
+  - `readonly` 字段可能为 0 或 1（但实际行为为只读）
+  - 通常具有特定的 `uidt` 值
+- **典型列**：
+  | 列标题 | `uidt` | 说明 |
+  |--------|--------|------|
+  | Id | "ID" | 主键，自增整数，每张表有且仅有一个 |
+  | CreatedAt | "CreatedTime" | 记录创建时间 |
+  | UpdatedAt | "LastModifiedTime" | 记录最后修改时间 |
+  | nc_created_by | "CreatedBy" | 创建者用户ID |
+  | nc_updated_by | "LastModifiedBy" | 最后修改者用户ID |
+  | nc_order | "Order" | 排序字段 |
+- **处理策略**：
+  - 在创建/更新记录时自动忽略这些字段
+  - 读取时返回系统生成的值
+  - 不可通过SDK修改
+
+### 2. 用户定义的值只读列（User-defined Read-only Columns）
+- **定义**：由用户创建，但值由系统计算或生成，用户无法直接修改值（但列元数据如标题、描述可修改）。
+- **特征**：
+  - `system` 字段值为 0
+  - `readonly` 字段可能为 0 或 1（但实际行为为只读）
+  - 特定的 `uidt` 值表示计算类型
+- **典型列**：
+  - **计算型**：Formula（公式）、Lookup（查找）、Rollup（汇总）
+  - **生成型**：QrCode（二维码）、Barcode（条形码）、Button（按钮）
+  - **时间/用户型**：CreatedTime、LastModifiedTime、CreatedBy、LastModifiedBy（用户自定义版本）
+- **处理策略**：
+  - 在创建/更新记录时自动忽略这些字段
+  - 读取时返回系统计算的值
+  - 允许通过列元数据API修改列属性（标题、描述等）
+
+### 3. 链接列（Link Columns）
+- **定义**：由用户创建Links列时，系统自动衍生的LinkToAnotherRecord列，用于表示表间关系。
+- **特征**：
+  - 两种列类型：`Links`（uidt "Links"）和 `LinkToAnotherRecord`（uidt "LinkToAnotherRecord"）
+  - `virtual` 字段可能为 1
+  - 值表示关联记录的数量或详情
+- **典型列**：
+  - **Links列**：用户定义的关联字段（如 test_m2m_link）
+  - **LinkToAnotherRecord列**：系统自动生成的关联字段（如 nc_8cu0___nc_m2m_Table_1_Table_2s）
+- **处理策略**：
+  - 值只读，不能直接修改
+  - 必须通过专门的链接记录API（`/api/v2/tables/{tableId}/links/{linkFieldId}/records/{recordId}`）管理关系
+  - 在创建/更新记录时自动忽略这些字段
+
+### 架构影响
+1. **列信息缓存**：需要缓存列的分类信息，以在记录操作时快速识别特殊列。
+2. **记录操作过滤**：在创建和更新记录时，自动过滤掉三类特殊列，避免API错误。
+3. **链接记录管理**：提供专门的链接操作方法，集成到NocoDBTable类中。
+4. **错误处理**：当用户尝试修改只读列时，提供清晰的错误信息。
+
 ### 数据流架构扩展
 ```mermaid
 sequenceDiagram
