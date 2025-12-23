@@ -10,6 +10,16 @@
 
 ## 激活虚拟环境
 
+### Linux / macOS (bash/zsh)
+```bash
+# 激活虚拟环境
+source .venv/bin/activate
+
+# 验证激活
+python --version  # 应显示 Python 3.13.1
+pip list          # 应显示项目依赖包
+```
+
 ### Windows PowerShell
 ```powershell
 # 激活虚拟环境
@@ -30,7 +40,7 @@ python --version
 pip list
 ```
 
-### 退出虚拟环境
+### 退出虚拟环境（所有环境）
 ```bash
 deactivate
 ```
@@ -61,12 +71,30 @@ pip freeze > requirements.txt
 ## 开发工作流
 
 ### 1. 开始开发
+
+#### Linux / macOS
 ```bash
+# 激活虚拟环境
+source .venv/bin/activate
+
+# 运行项目测试套件
+python -m pytest tests/
+```
+
+#### Windows PowerShell
+```powershell
 # 激活虚拟环境
 .\.venv\Scripts\Activate.ps1
 
-# 运行测试
-python test_venv.py
+
+# 运行项目测试套件
+python -m pytest tests/
+```
+
+#### Windows CMD
+```cmd
+# 激活虚拟环境
+.venv\Scripts\activate.bat
 
 # 运行项目测试套件
 python -m pytest tests/
@@ -85,9 +113,13 @@ pip install pytest pytest-cov
 在VSCode中设置Python解释器：
 1. 打开命令面板 (`Ctrl+Shift+P`)
 2. 输入 "Python: Select Interpreter"
-3. 选择 `.venv\Scripts\python.exe`
+3. 选择虚拟环境的Python解释器：
+   - **Windows**: `.venv\Scripts\python.exe`
+   - **Linux/macOS**: `.venv/bin/python`
 
 ## 虚拟环境目录结构
+
+### Windows 环境
 ```
 .venv/
 ├── Scripts/           # Windows可执行文件
@@ -97,6 +129,19 @@ pip install pytest pytest-cov
 │   └── activate.bat   # CMD激活脚本
 ├── Lib/               # Python库文件
 │   └── site-packages/ # 安装的第三方包
+└── pyvenv.cfg        # 虚拟环境配置
+```
+
+### Linux/macOS 环境
+```
+.venv/
+├── bin/               # 可执行文件
+│   ├── python         # 虚拟环境Python解释器
+│   ├── pip            # 虚拟环境包管理器
+│   └── activate       # bash激活脚本
+├── lib/               # Python库文件
+│   └── python3.x/     # Python版本特定目录
+│       └── site-packages/ # 安装的第三方包
 └── pyvenv.cfg        # 虚拟环境配置
 ```
 
@@ -121,7 +166,20 @@ pip install pytest pytest-cov
    - 解决方案：确保使用Python 3.9+版本
 
 ### 重新创建虚拟环境
+
+#### Linux / macOS
 ```bash
+# 删除现有环境
+rm -rf .venv
+
+# 重新创建
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .
+```
+
+#### Windows PowerShell
+```powershell
 # 删除现有环境
 Remove-Item -Recurse -Force .venv
 
@@ -131,20 +189,34 @@ python -m venv .venv
 pip install -e .
 ```
 
+#### Windows CMD
+```cmd
+# 删除现有环境
+rmdir /s /q .venv
+
+# 重新创建
+python -m venv .venv
+.venv\Scripts\activate.bat
+pip install -e .
+```
+
 ## 版本控制
 虚拟环境目录 `.venv/` 已添加到 `.gitignore`，不应提交到版本控制。
 
 ## 环境验证
 运行测试脚本验证环境完整性：
-```bash
-python test_venv.py
-```
 
 预期输出应包含：
 - ✅ Python版本信息
 - ✅ NocoDB SDK模块导入成功
 - ✅ 依赖包版本信息
 - ✅ 测试通过确认
+
+### 多平台兼容性检查
+确保以下命令在所有环境中都能正常工作：
+- `python --version` - 显示正确的Python版本
+- `pip list` - 显示已安装的包列表
+- `python -c "import nocodb_py; print('SDK导入成功')"` - 验证SDK模块导入
 
 ---
 
