@@ -147,6 +147,12 @@ nocodb-py/
 
 ## 开发工作流
 
+### Python 命令执行规范
+- **虚拟环境检查**: 使用 `execute_command` 工具执行 python、pip 等 Python 相关命令前，必须确认是否处于虚拟环境下，避免污染系统环境
+- **简短测试**: 对于较短语句的 Python 测试，可以使用 `python -c` 直接执行
+- **临时测试区**: `tests/draft.py` 为临时测试区（任何 `tests/draft*` 文件都在 `.gitignore` 规则内），可以自由创建、修改和删除这些文件中的代码并执行
+- **输出管理**: 如果 draft 区域代码的 Python 输出结果可能过长，可以将结果保存在 `tests/draft/` 文件夹下以供后续读取
+
 ### 依赖管理
 - **主依赖安装**: `pip install -e .`
 - **开发依赖安装**: `pip install -e .[dev]`
