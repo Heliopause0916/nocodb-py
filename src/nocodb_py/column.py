@@ -15,9 +15,73 @@ This module provides a column class to interact with NocoDB column-specific API
 import time
 import threading
 from typing import Dict, List, Any, Optional, Union
+from enum import Enum
 import requests
 from .utils import parse_utc_datetime, count_of_nocodb_data
 from .table import NocoDBTable
+
+class NocoDBColumnType(Enum):
+    """
+    Enumeration of all NocoDB column types.
+    
+    This enum provides type-safe references to NocoDB column type identifiers.
+    Used for column validation, type checking, and API interactions.
+    """
+    # Basic types
+    SINGLE_LINE_TEXT = "SingleLineText"
+    LONG_TEXT = "LongText"
+    NUMBER = "Number"
+    DATE = "Date"
+    TIME = "Time"
+    DATETIME = "DateTime"
+    CHECKBOX = "Checkbox"
+    YEAR = "Year"
+    DECIMAL = "Decimal"
+    PERCENT = "Percent"
+    DURATION = "Duration"
+    RATING = "Rating"
+    
+    # Selection types
+    SINGLE_SELECT = "SingleSelect"
+    MULTI_SELECT = "MultiSelect"
+    
+    # Validation types
+    EMAIL = "Email"
+    URL = "URL"
+    PHONE_NUMBER = "PhoneNumber"
+    CURRENCY = "Currency"
+    
+    # Special types
+    JSON = "JSON"
+    GEOMETRY = "Geometry"
+    GEO_DATA = "GeoData"
+    QR_CODE = "QrCode"
+    BARCODE = "Barcode"
+    USER = "User"
+    BUTTON = "Button"
+    FORMULA = "Formula"
+    ATTACHMENT = "Attachment"
+    LINK = "Link"
+    
+    @classmethod
+    def from_string(cls, type_str: str) -> 'NocoDBColumnType':
+        """
+        Convert a string to NocoDBColumnType enum.
+        
+        Args:
+            type_str: The column type string from NocoDB API
+            
+        Returns:
+            NocoDBColumnType: The corresponding enum value
+            
+        Raises:
+            ValueError: If the string doesn't match any enum value
+        """
+        for column_type in cls:
+            if column_type.value == type_str:
+                return column_type
+        raise ValueError(f"Unknown column type: {type_str}")
+
 
 # pylint: disable=too-many-instance-attributes
 class NocoDBColumn:

@@ -6,7 +6,7 @@ from .client import NocoDBClient
 from .workspace import NocoDBWorkspace
 from .project import NocoDBProject
 from .table import NocoDBTable, RecordNotFoundError
-from .column import NocoDBColumn
+from .column import NocoDBColumn, NocoDBColumnType
 
 __all__ = [
     'NocoDBClient',
@@ -14,5 +14,6 @@ __all__ = [
     'NocoDBProject',
     'NocoDBTable',
     'NocoDBColumn',
+    'NocoDBColumnType',
     'RecordNotFoundError'
     ]
