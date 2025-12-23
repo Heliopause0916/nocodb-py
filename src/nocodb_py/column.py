@@ -176,3 +176,142 @@ class NocoDBColumn:
         """
         return self._table
 
+    def get_meta_v2_prefix(self) -> str:
+        """
+        Get the meta v2 prefix
+        
+        Returns:
+            str: The meta v2 prefix
+        """
+        return f"/api/v2/meta/columns/{self._column_id}"
+
+    def _get(self, path: str, **kwargs) -> Dict:
+        """
+        Send a GET request to the NocoDB API
+        
+        Args:
+            path (str): The API endpoint path
+            **kwargs: Additional arguments to pass to requests.get
+            
+        Returns:
+            Dict: The JSON response from the API
+            
+        Raises:
+            requests.exceptions.RequestException: If the request fails
+        """
+        url = f"{self._table.get_project().get_client().get_base_url()}{path}"
+        headers = {"xc-token": self._xc_token}
+        if 'headers' in kwargs:
+            headers.update(kwargs['headers'])
+            del kwargs['headers']
+
+        response = requests.get(url, headers=headers, timeout=self._timeout, **kwargs)
+        response.raise_for_status()
+        return response.json()
+
+    def _post(self, path: str, data: Optional[Dict] = None, **kwargs) -> Dict:
+        """
+        Send a POST request to the NocoDB API
+        
+        Args:
+            path (str): The API endpoint path
+            data (Optional[Dict]): The data to send in the request body
+            **kwargs: Additional arguments to pass to requests.post
+            
+        Returns:
+            Dict: The JSON response from the API
+            
+        Raises:
+            requests.exceptions.RequestException: If the request fails
+        """
+        url = f"{self._table.get_project().get_client().get_base_url()}{path}"
+        headers = {"xc-token": self._xc_token}
+        if 'headers' in kwargs:
+            headers.update(kwargs['headers'])
+            del kwargs['headers']
+
+        response = requests.post(url, headers=headers, json=data, timeout=self._timeout, **kwargs)
+        response.raise_for_status()
+        return response.json()
+
+    def _patch(self, path: str, data: Optional[Dict] = None, **kwargs) -> Dict:
+        """
+        Send a PATCH request to the NocoDB API
+        
+        Args:
+            path (str): The API endpoint path
+            data (Optional[Dict]): The data to send in the request body
+            **kwargs: Additional arguments to pass to requests.patch
+            
+        Returns:
+            Dict: The JSON response from the API
+            
+        Raises:
+            requests.exceptions.RequestException: If the request fails
+        """
+        url = f"{self._table.get_project().get_client().get_base_url()}{path}"
+        headers = {"xc-token": self._xc_token}
+        if 'headers' in kwargs:
+            headers.update(kwargs['headers'])
+            del kwargs['headers']
+
+        response = requests.patch(url, headers=headers, json=data, timeout=self._timeout, **kwargs)
+        response.raise_for_status()
+        return response.json()
+
+    def _delete(self, path: str, **kwargs) -> Dict:
+        """
+        Send a DELETE request to the NocoDB API
+        
+        Args:
+            path (str): The API endpoint path
+            **kwargs: Additional arguments to pass to requests.delete
+            
+        Returns:
+            Dict: The JSON response from the API
+            
+        Raises:
+            requests.exceptions.RequestException: If the request fails
+        """
+        url = f"{self._table.get_project().get_client().get_base_url()}{path}"
+        headers = {"xc-token": self._xc_token}
+        if 'headers' in kwargs:
+            headers.update(kwargs['headers'])
+            del kwargs['headers']
+
+        response = requests.delete(url, headers=headers, timeout=self._timeout, **kwargs)
+        response.raise_for_status()
+        return response.json()
+
+    def get_full_info(self, force_refresh: bool = False) -> Dict:
+        """
+        Get the full info for the column
+        
+        Args:
+            force_refresh (bool): Whether to force a refresh of the column info
+            
+        Returns:
+            Dict: The full column info
+        """
+        with self._cache_lock:
+            current_time = time.time()
+            cache_ttl = self._cache_ttl
+            if(not force_refresh and
+               self._column_info_cache is not None and
+               (cache_ttl is None or current_time - self._column_info_timestamp < cache_ttl)
+               ):
+                return self._column_info_cache
+
+            self._column_info_cache = self._get(
+                f"{self.get_meta_v2_prefix()}"
+            )
+            self._column_info_timestamp = current_time
+            return self._column_info_cache
+
+    def clear_column_info_cache(self):
+        """
+        Clear column info cache
+        """
+        with self._cache_lock:
+            self._column_info_cache = None
+            self._column_info_timestamp = 0
