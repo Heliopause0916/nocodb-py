@@ -317,7 +317,7 @@ class NocoDBProject:
                 return self._tables_cache
             
             params = {
-                "includeM2M": include_m2m
+                "includeM2M": "true" if include_m2m else "false"
             }
             self._tables_cache = self._get(f"{self.get_meta_v2_prefix()}/tables",
                                            params=params)
