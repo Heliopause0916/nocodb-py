@@ -97,6 +97,71 @@ class NocoDBClient:
         # Only hash immutable attributes used for equality comparison
         return hash((self._base_url, self._xc_token))
 
+    def __copy__(self):
+        """
+        Shallow copy implementation for NocoDBClient.
+        
+        Returns:
+            NocoDBClient: A new client instance with same configuration but fresh cache
+        """
+        new_client = NocoDBClient(self._base_url, self._xc_token,
+                                self._cache_ttl, self._timeout)
+        # Do not copy cache state - new object should have fresh cache
+        return new_client
+
+    def __deepcopy__(self, memo):
+        """
+        Deep copy implementation for NocoDBClient.
+        
+        Args:
+            memo: Memo dictionary for deepcopy
+            
+        Returns:
+            NocoDBClient: A new client instance with same configuration but fresh cache
+        """
+        # For NocoDBClient, deepcopy is the same as shallow copy
+        # since we don't want to copy cache state
+        return self.__copy__()
+
+    def __getstate__(self):
+        """
+        Get state for pickling.
+        
+        Returns:
+            dict: State dictionary without non-serializable objects
+        """
+        state = self.__dict__.copy()
+        # Remove non-serializable objects
+        state.pop('_cache_lock', None)
+        state.pop('_nocodb_info_cache', None)
+        state.pop('_nocodb_info_timestamp', None)
+        state.pop('_user_me_cache', None)
+        state.pop('_user_me_timestamp', None)
+        state.pop('_projects_cache', None)
+        state.pop('_projects_timeout', None)
+        state.pop('_workspaces_cache', None)
+        state.pop('_workspaces_timeout', None)
+        return state
+
+    def __setstate__(self, state):
+        """
+        Set state from pickling.
+        
+        Args:
+            state: State dictionary
+        """
+        self.__dict__.update(state)
+        # Reinitialize non-serializable objects
+        self._cache_lock = threading.RLock()
+        self._nocodb_info_cache = None
+        self._nocodb_info_timestamp = 0
+        self._user_me_cache = None
+        self._user_me_timestamp = 0
+        self._projects_cache = None
+        self._projects_timeout = 0
+        self._workspaces_cache = None
+        self._workspaces_timeout = 0
+
     def get_workspaces_full_info(self, force_refresh: bool = False) -> Optional[Dict]:
         """
         Get all workspaces with full information

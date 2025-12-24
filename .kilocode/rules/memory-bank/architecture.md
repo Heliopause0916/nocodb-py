@@ -83,6 +83,12 @@ graph TD
 ### 工厂模式
 - 通过客户端方法创建工作区、项目、表格对象
 
+### Python Rule of Zero
+- 核心类实现`__copy__`、`__deepcopy__`、`__getstate__`、`__setstate__`方法
+- 遵循Python的Rule of Zero原则，避免不必要的特殊方法定义
+- 拷贝时自动重置缓存状态，保持对象独立性
+- 支持pickle序列化，正确处理线程锁和缓存状态
+
 ## 关键实现路径
 
 ### 客户端初始化流程

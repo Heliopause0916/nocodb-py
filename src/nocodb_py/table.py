@@ -13,6 +13,7 @@ NocoDB Table for Python
 
 import time
 import threading
+import copy
 from typing import Dict, List, Any, Optional, Union, Callable
 from typing import TYPE_CHECKING
 import requests
@@ -104,6 +105,67 @@ class NocoDBTable:
             int: Hash value based on immutable attributes that define identity
         """
         return hash((self._project, self._table_id))
+
+    def __copy__(self):
+        """
+        Shallow copy implementation for NocoDBTable.
+        
+        Returns:
+            NocoDBTable: A new table instance with same configuration but fresh cache
+        """
+        new_table = NocoDBTable(self._project, self._table_id, self._xc_token,
+                              self._timeout, self._cache_ttl)
+        # Reset cache state
+        new_table._table_info_cache = None
+        new_table._table_info_timestamp = 0
+        new_table._columns_cache = None
+        new_table._columns_timestamp = 0
+        return new_table
+
+    def __deepcopy__(self, memo):
+        """
+        Deep copy implementation for NocoDBTable.
+        
+        Args:
+            memo: Memo dictionary for deepcopy
+            
+        Returns:
+            NocoDBTable: A new table instance with same configuration but fresh cache
+        """
+        # For NocoDBTable, deepcopy is the same as shallow copy
+        # since we don't want to copy cache state and project is shared
+        return self.__copy__()
+
+    def __getstate__(self):
+        """
+        Get state for pickling.
+        
+        Returns:
+            dict: State dictionary without non-serializable objects
+        """
+        state = self.__dict__.copy()
+        # Remove non-serializable objects
+        state.pop('_cache_lock', None)
+        state.pop('_table_info_cache', None)
+        state.pop('_table_info_timestamp', None)
+        state.pop('_columns_cache', None)
+        state.pop('_columns_timestamp', None)
+        return state
+
+    def __setstate__(self, state):
+        """
+        Set state from pickling.
+        
+        Args:
+            state: State dictionary
+        """
+        self.__dict__.update(state)
+        # Reinitialize non-serializable objects
+        self._cache_lock = threading.RLock()
+        self._table_info_cache = None
+        self._table_info_timestamp = 0
+        self._columns_cache = None
+        self._columns_timestamp = 0
 
     def get_table_id(self) -> str:
         """
