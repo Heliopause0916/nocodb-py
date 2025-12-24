@@ -52,6 +52,7 @@ class NocoDBProject:
         self._project_info_timestamp = 0
         self._tables_cache = None
         self._tables_timestamp = 0
+        self._last_include_m2m = None  # Track last include_m2m parameter value
 
         self._cache_lock = threading.RLock()
 
@@ -110,6 +111,7 @@ class NocoDBProject:
         new_project._project_info_timestamp = 0
         new_project._tables_cache = None
         new_project._tables_timestamp = 0
+        new_project._last_include_m2m = None
         return new_project
 
     def __deepcopy__(self, memo):
@@ -140,6 +142,7 @@ class NocoDBProject:
         state.pop('_project_info_timestamp', None)
         state.pop('_tables_cache', None)
         state.pop('_tables_timestamp', None)
+        state.pop('_last_include_m2m', None)
         return state
 
     def __setstate__(self, state):
@@ -156,6 +159,7 @@ class NocoDBProject:
         self._project_info_timestamp = 0
         self._tables_cache = None
         self._tables_timestamp = 0
+        self._last_include_m2m = None
 
     def get_project_id(self) -> str:
         """
@@ -288,23 +292,37 @@ class NocoDBProject:
         """
         Get the full information of all tables in the project
         
+        Args:
+            force_refresh (bool): Whether to force refresh the cache
+            include_m2m (bool): Whether to include many-to-many relationship tables
+            
         Returns:
             Dict[str, Any]: The information of all tables in the project
         """
         with self._cache_lock:
             current_time = time.time()
             cache_ttl = self._cache_ttl
-            if(not force_refresh and
+            
+            # Check if include_m2m parameter has changed since last cache
+            include_m2m_changed = (self._last_include_m2m is not None and
+                                  self._last_include_m2m != include_m2m)
+            
+            # Force refresh if parameter changed or explicitly requested
+            effective_force_refresh = force_refresh or include_m2m_changed
+            
+            if(not effective_force_refresh and
               self._tables_cache is not None and
               (cache_ttl is None or current_time - self._tables_timestamp < cache_ttl)
               ):
                 return self._tables_cache
+            
             params = {
                 "includeM2M": include_m2m
             }
             self._tables_cache = self._get(f"{self.get_meta_v2_prefix()}/tables",
                                            params=params)
             self._tables_timestamp = current_time
+            self._last_include_m2m = include_m2m  # Store the parameter value
             return self._tables_cache
 
     def list_tables(self, force_refresh: bool = False, include_m2m: bool = False,
@@ -404,7 +422,8 @@ class NocoDBProject:
         """
         return f"/api/v2/meta/bases/{self._project_id}"
 
-    def find_tables_by_title(self, title: str, match_func :Optional[Callable[[str, str], bool]] =None, force_refresh: bool = False) -> list:
+    def find_tables_by_title(self, title: str, match_func :Optional[Callable[[str, str], bool]] =None,
+                            force_refresh: bool = False, include_m2m: bool = False) -> list:
         """
         Find list of matching table_ids by title
         
@@ -412,6 +431,7 @@ class NocoDBProject:
             title (str): The title string to search for
             match_func (Callable): Matching function, accepts two string arguments and returns bool, defaults to exact match
             force_refresh (bool): Whether to force refresh the cache
+            include_m2m (bool): Whether to include many-to-many relationship tables
             
         Returns:
             List[str]: List of matching table_ids
@@ -422,7 +442,7 @@ class NocoDBProject:
         if match_func is None:
             match_func = exact_match
         
-        tables: Optional[List[Dict[str, Any]]] = self.list_tables(force_refresh=force_refresh)
+        tables: Optional[List[Dict[str, Any]]] = self.list_tables(force_refresh=force_refresh, include_m2m=include_m2m)
         if tables is None:
             return []
         
@@ -446,5 +466,6 @@ class NocoDBProject:
         with self._cache_lock:
             self._tables_cache = None
             self._tables_timestamp = 0
+            self._last_include_m2m = None
 
 NocoDBBase = NocoDBProject
