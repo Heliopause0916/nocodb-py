@@ -315,6 +315,38 @@ class NocoDBTable:
             self._table_info_timestamp = current_time
             return self._table_info_cache
 
+    def get_title(self, force_refresh: bool = False) -> str:
+        """
+        Get the title of the table
+        
+        Args:
+            force_refresh (bool): Whether to force refresh the cache
+            
+        Returns:
+            str: The title of the table
+            
+        Raises:
+            ValueError: When title is not found in table info
+        """
+        table_info = self.get_full_info(force_refresh=force_refresh)
+        title = table_info.get("title")
+        if title is None:
+            raise ValueError("Title not found in table info")
+        return title
+
+    def get_description(self, force_refresh: bool = False) -> Optional[str]:
+        """
+        Get the description of the table
+        
+        Args:
+            force_refresh (bool): Whether to force refresh the cache
+            
+        Returns:
+            Optional[str]: The description of the table, or None if not set
+        """
+        table_info = self.get_full_info(force_refresh=force_refresh)
+        return table_info.get("description")
+
     def get_columns_full_info(self, force_refresh: bool = False) -> List:
         """
         Get the full column info for the table
