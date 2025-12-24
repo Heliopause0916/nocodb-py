@@ -11,6 +11,9 @@ graph TD
     A[NocoDBClient] --> B[NocoDBWorkspace]
     A --> C[NocoDBProject]
     C --> D[NocoDBTable]
+    D --> E[NocoDBRecordSet]
+    D --> F[NocoDBRecord]
+    E --> F
     B --> C
 ```
 
@@ -20,6 +23,8 @@ graph TD
 - **NocoDBProject**: 项目管理，包含表格操作
 - **NocoDBTable**: 表格管理，包含列和数据操作
 - **NocoDBColumn**: 列管理，包含列类型验证和转换功能
+- **NocoDBRecord**: 记录对象，封装记录数据和元数据，支持在线/离线状态管理
+- **NocoDBRecordSet**: 记录集合，封装多个记录和集合操作
 
 ## 源代码路径
 
@@ -29,6 +34,7 @@ graph TD
 - [`src/nocodb_py/project.py`](../../../src/nocodb_py/project.py) - 项目管理类
 - [`src/nocodb_py/table.py`](../../../src/nocodb_py/table.py) - 表格管理类
 - [`src/nocodb_py/column.py`](../../../src/nocodb_py/column.py) - 列管理类，包含列类型验证和转换功能
+- [`src/nocodb_py/record.py`](../../../src/nocodb_py/record.py) - 记录管理类，包含记录对象和记录集合
 - [`src/nocodb_py/utils.py`](../../../src/nocodb_py/utils.py) - 工具函数
 - [`src/nocodb_py/variable.py`](../../../src/nocodb_py/variable.py) - 配置变量
 
@@ -128,12 +134,16 @@ sequenceDiagram
 - NocoDBWorkspace 继承自 NocoDBClient
 - NocoDBProject 依赖于 NocoDBClient
 - NocoDBTable 依赖于 NocoDBProject
+- NocoDBRecordSet 依赖于 NocoDBTable
+- NocoDBRecord 独立存在，可通过table_id与表关联
 
 ### 数据流关系
 - 客户端管理基础认证和连接
 - 工作区管理云实例的多租户隔离
 - 项目作为数据组织的核心单元
 - 表格作为数据存储和操作的基本单位
+- 记录集合封装多个记录和集合操作
+- 记录作为数据容器，支持在线/离线状态管理
 - 列作为数据验证和类型转换的核心组件
 
 ## V2 API架构扩展
