@@ -386,6 +386,38 @@ class NocoDBProject:
                 
         raise ValueError(f"Table with ID {table_id} not found")
 
+    def get_title(self, force_refresh: bool = False) -> str:
+        """
+        Get the title of the project
+        
+        Args:
+            force_refresh (bool): Whether to force refresh the cache
+            
+        Returns:
+            str: The title of the project
+            
+        Raises:
+            ValueError: When title is not found in project info
+        """
+        project_info = self.get_full_info(force_refresh=force_refresh)
+        title = project_info.get("title")
+        if title is None:
+            raise ValueError("Title not found in project info")
+        return title
+
+    def get_description(self, force_refresh: bool = False) -> Optional[str]:
+        """
+        Get the description of the project
+        
+        Args:
+            force_refresh (bool): Whether to force refresh the cache
+            
+        Returns:
+            Optional[str]: The description of the project, or None if not set
+        """
+        project_info = self.get_full_info(force_refresh=force_refresh)
+        return project_info.get("description")
+
     def count_tables(self, force_refresh: bool = False) -> Optional[int]:
         """
         Count the number of tables in the project
