@@ -216,12 +216,13 @@ class NocoDBTable:
         response.raise_for_status()
         return response.json()
 
-    def _delete(self, path: str, **kwargs) -> Dict:
+    def _delete(self, path: str, data: Optional[Union[Dict, List[Dict]]] = None, **kwargs) -> Dict:
         """
         Send a DELETE request to the NocoDB API
         
         Args:
             path (str): The API endpoint path
+            data (Optional[Union[Dict, List[Dict]]]): The data to send in the request body
             **kwargs: Additional arguments to pass to requests.delete
             
         Returns:
@@ -236,17 +237,17 @@ class NocoDBTable:
             headers.update(kwargs['headers'])
             del kwargs['headers']
 
-        response = requests.delete(url, headers=headers, timeout=self._timeout, **kwargs)
+        response = requests.delete(url, headers=headers, json=data, timeout=self._timeout, **kwargs)
         response.raise_for_status()
         return response.json()
 
-    def _patch(self, path: str, data: Optional[Dict] = None, **kwargs) -> Dict:
+    def _patch(self, path: str, data: Optional[Union[Dict, List[Dict]]] = None, **kwargs) -> Dict:
         """
         Send a PATCH request to the NocoDB API
         
         Args:
             path (str): The API endpoint path
-            data (Optional[Dict]): The data to send in the request body
+            data (Optional[Union[Dict, List[Dict]]]): The data to send in the request body
             **kwargs: Additional arguments to pass to requests.patch
             
         Returns:
@@ -265,13 +266,13 @@ class NocoDBTable:
         response.raise_for_status()
         return response.json()
 
-    def _post(self, path: str, data: Optional[Dict] = None, **kwargs) -> Dict:
+    def _post(self, path: str, data: Optional[Union[Dict, List[Dict]]] = None, **kwargs) -> Dict:
         """
         Send a POST request to the NocoDB API
         
         Args:
             path (str): The API endpoint path
-            data (Optional[Dict]): The data to send in the request body
+            data (Optional[Union[Dict, List[Dict]]]): The data to send in the request body
             **kwargs: Additional arguments to pass to requests.post
             
         Returns:
@@ -543,3 +544,271 @@ class NocoDBTable:
             if e.response.status_code == 404:
                 raise RecordNotFoundError(self._table_id, record_id, e) from e
             raise
+
+    def _validate_column_names(self, record: Dict, column_titles: List[str]) -> None:
+        """
+        Validate that all keys in the record exist as column titles in the table.
+        
+        Args:
+            record (Dict): The record to validate
+            column_titles (List[str]): List of valid column titles
+            
+        Raises:
+            ValueError: If any key in the record is not a valid column title
+        """
+        invalid_columns = []
+        for key in record.keys():
+            if key not in column_titles:
+                invalid_columns.append(key)
+        
+        if invalid_columns:
+            raise ValueError(f"Invalid column names: {invalid_columns}. Valid columns are: {column_titles}")
+
+    def _filter_read_only_columns(self, record: Dict, columns_info: List[Dict]) -> Dict:
+        """
+        Filter out read-only columns from the record.
+        
+        Args:
+            record (Dict): The record to filter
+            columns_info (List[Dict]): List of column information
+            
+        Returns:
+            Dict: The filtered record with only writable columns
+        """
+        # Get column titles that are read-only
+        read_only_titles = []
+        for col in columns_info:
+            # Check if column is system column (system=1) or readonly (readonly=1)
+            if col.get('system') == 1 or col.get('readonly') == 1:
+                read_only_titles.append(col.get('title', ''))
+        
+        # Filter out read-only columns
+        filtered_record = {}
+        for key, value in record.items():
+            if key not in read_only_titles:
+                filtered_record[key] = value
+        
+        return filtered_record
+
+    def create_records(self, records: Union[Dict, List[Dict]]) -> Union[Dict, List[Dict]]:
+        """
+        Create one or more records in the table.
+        
+        Args:
+            records (Union[Dict, List[Dict]]): Single record or list of records to create
+            
+        Returns:
+            Union[Dict, List[Dict]]: Created record ID(s)
+            
+        Raises:
+            ValueError: If column names in records are invalid
+            requests.exceptions.RequestException: If the API request fails
+            
+        Example:
+            >>> # Create single record
+            >>> result = table.create_records({"Name": "John", "Age": 30})
+            >>> print(result)
+            {"Id": 123}
+            
+            >>> # Create multiple records
+            >>> result = table.create_records([
+            ...     {"Name": "John", "Age": 30},
+            ...     {"Name": "Jane", "Age": 25}
+            ... ])
+            >>> print(result)
+            [{"Id": 123}, {"Id": 124}]
+        """
+        # Get column information for validation and filtering
+        columns_info = self.get_columns_full_info()
+        column_titles = [col.get('title', '') for col in columns_info]
+        
+        # Handle single record case
+        if isinstance(records, dict):
+            # Validate column names
+            self._validate_column_names(records, column_titles)
+            
+            # Filter out read-only columns
+            filtered_record = self._filter_read_only_columns(records, columns_info)
+            
+            # Send POST request
+            path = f"{self.get_data_v2_prefix()}/records"
+            response = self._post(path, data=filtered_record)
+            
+            # Return the created record ID
+            return response
+            
+        # Handle batch records case
+        elif isinstance(records, list):
+            # Validate and filter each record
+            filtered_records = []
+            for record in records:
+                if not isinstance(record, dict):
+                    raise ValueError("Each record must be a dictionary")
+                
+                self._validate_column_names(record, column_titles)
+                filtered_record = self._filter_read_only_columns(record, columns_info)
+                filtered_records.append(filtered_record)
+            
+            # Send POST request with batch data
+            path = f"{self.get_data_v2_prefix()}/records"
+            response = self._post(path, data=filtered_records)
+            
+            # Return the list of created record IDs
+            return response
+            
+        else:
+            raise ValueError("Records must be a dictionary or list of dictionaries")
+
+    def update_records(self, records: Union[Dict, List[Dict]]) -> Union[Dict, List[Dict]]:
+        """
+        Update one or more records in the table.
+        
+        Args:
+            records (Union[Dict, List[Dict]]): Single record or list of records to update.
+                Each record must contain an "Id" field to identify which record to update.
+            
+        Returns:
+            Union[Dict, List[Dict]]: Updated record ID(s)
+            
+        Raises:
+            ValueError: If column names in records are invalid or if "Id" field is missing
+            requests.exceptions.RequestException: If the API request fails
+            
+        Example:
+            >>> # Update single record
+            >>> result = table.update_records({"Id": 123, "Name": "John Updated", "Age": 31})
+            >>> print(result)
+            {"Id": 123}
+            
+            >>> # Update multiple records
+            >>> result = table.update_records([
+            ...     {"Id": 123, "Name": "John Updated", "Age": 31},
+            ...     {"Id": 124, "Name": "Jane Updated", "Age": 26}
+            ... ])
+            >>> print(result)
+            [{"Id": 123}, {"Id": 124}]
+        """
+        # Get column information for validation and filtering
+        columns_info = self.get_columns_full_info()
+        column_titles = [col.get('title', '') for col in columns_info]
+        
+        def validate_and_filter_record(record: Dict) -> Dict:
+            """Validate and filter a single record for update."""
+            if not isinstance(record, dict):
+                raise ValueError("Each record must be a dictionary")
+            
+            # Check if record has "Id" field
+            if "Id" not in record:
+                raise ValueError("Record must contain an 'Id' field to identify which record to update")
+            
+            # Validate column names (excluding "Id" which is required for update)
+            record_without_id = {k: v for k, v in record.items() if k != "Id"}
+            self._validate_column_names(record_without_id, column_titles)
+            
+            # Filter out read-only columns (but keep "Id" for identification)
+            filtered_record = self._filter_read_only_columns(record, columns_info)
+            
+            # Ensure "Id" is preserved even if it's a read-only column
+            if "Id" in record and "Id" not in filtered_record:
+                filtered_record["Id"] = record["Id"]
+            
+            return filtered_record
+        
+        # Handle single record case
+        if isinstance(records, dict):
+            filtered_record = validate_and_filter_record(records)
+            
+            # Send PATCH request
+            path = f"{self.get_data_v2_prefix()}/records"
+            response = self._patch(path, data=filtered_record)
+            
+            # Return the updated record ID
+            return response
+            
+        # Handle batch records case
+        elif isinstance(records, list):
+            # Validate and filter each record
+            filtered_records = []
+            for record in records:
+                filtered_record = validate_and_filter_record(record)
+                filtered_records.append(filtered_record)
+            
+            # Send PATCH request with batch data
+            path = f"{self.get_data_v2_prefix()}/records"
+            response = self._patch(path, data=filtered_records)
+            
+            # Return the list of updated record IDs
+            return response
+            
+        else:
+            raise ValueError("Records must be a dictionary or list of dictionaries")
+
+    def delete_records(self, records: Union[Dict, List[Dict]]) -> Union[Dict, List[Dict]]:
+        """
+        Delete one or more records from the table.
+        
+        Args:
+            records (Union[Dict, List[Dict]]): Single record or list of records to delete.
+                Each record must contain an "Id" field to identify which record to delete.
+            
+        Returns:
+            Union[Dict, List[Dict]]: Deletion result(s)
+            
+        Raises:
+            ValueError: If "Id" field is missing in records
+            requests.exceptions.RequestException: If the API request fails
+            
+        Example:
+            >>> # Delete single record
+            >>> result = table.delete_records({"Id": 123})
+            >>> print(result)
+            {"Id": 123}
+            
+            >>> # Delete multiple records
+            >>> result = table.delete_records([
+            ...     {"Id": 123},
+            ...     {"Id": 124}
+            ... ])
+            >>> print(result)
+            [{"Id": 123}, {"Id": 124}]
+        """
+        def validate_record_for_deletion(record: Dict) -> Dict:
+            """Validate a single record for deletion."""
+            if not isinstance(record, dict):
+                raise ValueError("Each record must be a dictionary")
+            
+            # Check if record has "Id" field
+            if "Id" not in record:
+                raise ValueError("Record must contain an 'Id' field to identify which record to delete")
+            
+            # For deletion, we only need the ID, but we'll preserve the original record structure
+            return {"Id": record["Id"]}
+        
+        # Handle single record case
+        if isinstance(records, dict):
+            validated_record = validate_record_for_deletion(records)
+            
+            # Send DELETE request
+            path = f"{self.get_data_v2_prefix()}/records"
+            response = self._delete(path, data=validated_record)
+            
+            # Return the deletion result
+            return response
+            
+        # Handle batch records case
+        elif isinstance(records, list):
+            # Validate each record
+            validated_records = []
+            for record in records:
+                validated_record = validate_record_for_deletion(record)
+                validated_records.append(validated_record)
+            
+            # Send DELETE request with batch data
+            path = f"{self.get_data_v2_prefix()}/records"
+            response = self._delete(path, data=validated_records)
+            
+            # Return the list of deletion results
+            return response
+            
+        else:
+            raise ValueError("Records must be a dictionary or list of dictionaries")
