@@ -698,7 +698,138 @@ class ValidationResult:
 - 分布式缓存支持
 
 ---
-*方案版本：1.2*
+*方案版本：1.3*
 *创建时间：2025-12-21*
-*最后更新：2025-12-23*
-*更新内容：基于实际数据格式分析完善列类型约束规范*
+*最后更新：2025-12-25*
+*更新内容：NocoDBRecord和NocoDBRecordSet设计规范*
+
+## NocoDBRecord和NocoDBRecordSet设计规范
+
+### 记录状态管理规范
+
+#### 1. 记录来源规范
+NocoDBRecord的来源有且仅有两个：
+- **API返回的记录**：通过`get_record()`或`list_records()`方法返回，天然为attached状态，拥有ID和table_id
+- **本地生成的记录**：用户从Python本地创建，仍未保存到table，为detached状态
+
+#### 2. 状态转换规范
+- **创建操作**：`create_record()`是唯一将detached记录变为attached的方法
+- **状态不可逆**：一旦记录拥有ID，将永远不能重新变回detached状态
+- **状态保护**：防止非法状态转换，确保数据一致性
+
+#### 3. 复制操作规范
+- **copy/deepcopy**：ID和table_id无法复制，系统列和高级列（link、attachment等）无法复制
+- **引用赋值**：允许使用等于号进行引用，但需要明确数据共享的风险
+- **数据保护**：使用深度拷贝保护内部数据，防止意外修改
+
+### NocoDBRecordSet规范
+
+#### 1. 来源规范
+- **API返回的RecordSet**：通过`list_records()`返回，包含attached记录
+- **本地生成的RecordSet**：用户可创建本地RecordSet，包含detached记录
+
+#### 2. 状态管理
+- **状态继承**：RecordSet的状态由其包含的Record决定
+- **批量操作**：支持批量创建、更新、删除操作
+- **状态一致性**：确保RecordSet中所有记录的状态一致性
+
+### 实现架构
+
+#### NocoDBRecord类增强
+```python
+class NocoDBRecord:
+    def __init__(self, data: Dict[str, Any],
+                 record_id: Optional[int] = None,
+                 table_id: Optional[str] = None,
+                 schema: Optional['NocoDBSchema'] = None):
+        # 数据保护：深度拷贝
+        self._data = copy.deepcopy(data)
+        self._record_id = record_id
+        self._table_id = table_id
+        self._schema = schema
+        self._is_modified = False
+    
+    def __copy__(self):
+        """浅拷贝：复制数据但不复制ID和table_id"""
+        # 系统列和高级列不复制
+        filtered_data = self._filter_copy_data(self._data)
+        return NocoDBRecord(filtered_data, schema=self._schema)
+    
+    def __deepcopy__(self, memo):
+        """深拷贝：与浅拷贝行为一致"""
+        return self.__copy__()
+    
+    def _filter_copy_data(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """过滤复制数据，移除系统列和高级列"""
+        if not self._schema:
+            return data.copy()
+        
+        filtered_data = {}
+        for field, value in data.items():
+            if self._schema.is_writable_field(field):
+                filtered_data[field] = copy.deepcopy(value)
+        return filtered_data
+```
+
+#### 状态验证方法
+```python
+def is_attached(self) -> bool:
+    """检查记录是否已附加到表"""
+    return self._record_id is not None and self._table_id is not None
+
+def validate_state_for_operation(self, operation: str) -> None:
+    """验证记录状态是否适合特定操作"""
+    if operation == "create" and self.is_attached():
+        raise InvalidStateError("已附加的记录不能用于创建操作")
+    if operation == "update" and not self.is_attached():
+        raise InvalidStateError("未附加的记录不能用于更新操作")
+```
+
+### 使用示例
+
+#### 基础使用
+```python
+# 创建离线记录
+record = NocoDBRecord({"Name": "John", "Age": 25})
+
+# 创建记录到表
+created_record = table.create_records([record])[0]
+
+# 记录自动变为在线状态
+print(record.is_attached())  # True
+print(record.record_id)      # 123
+
+# 复制记录（变为离线状态）
+record_copy = copy.copy(record)
+print(record_copy.is_attached())  # False
+print(record_copy.record_id)      # None
+```
+
+#### RecordSet使用
+```python
+# 从API获取记录集
+records = table.list_records()
+record_set = NocoDBRecordSet(records, table_id=table.table_id)
+
+# 批量更新
+table.update_records(record_set)
+
+# 创建本地记录集
+local_records = [NocoDBRecord({"Name": "Alice"}), NocoDBRecord({"Name": "Bob"})]
+local_set = NocoDBRecordSet(local_records)
+table.create_records(local_set)
+```
+
+### 设计优势
+
+1. **状态明确**：清晰的attached/detached状态划分，简化用户理解
+2. **操作安全**：状态验证防止非法操作，确保数据一致性
+3. **复制可控**：明确的复制规则，防止意外数据共享
+4. **向后兼容**：保持原有API不变，新增功能可选使用
+5. **扩展性强**：为未来高级功能（如事务、批量操作）奠定基础
+
+---
+*方案版本：1.3*
+*创建时间：2025-12-21*
+*最后更新：2025-12-25*
+*更新内容：NocoDBRecord和NocoDBRecordSet设计规范*
