@@ -1,0 +1,60 @@
+# Git行尾配置 - 确保所有文本文件在远程仓库中使用LF行尾
+# 无论本地使用CRLF还是LF，提交到远程仓库时一律转换为LF
+
+# 自动检测文本文件，提交时转换为LF
+* text=auto eol=lf
+
+# 明确指定文本文件类型，强制使用LF行尾
+*.py text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.toml text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.xml text eol=lf
+*.html text eol=lf
+*.css text eol=lf
+*.js text eol=lf
+*.ts text eol=lf
+*.sql text eol=lf
+*.sh text eol=lf
+*.bat text eol=lf
+*.ps1 text eol=lf
+*.cfg text eol=lf
+*.ini text eol=lf
+*.conf text eol=lf
+
+# 二进制文件：不进行行尾转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.exe binary
+*.dll binary
+*.so binary
+*.pyc binary
+*.pyd binary
+*.egg binary
+*.whl binary
+
+# Git相关文件特殊处理
+.gitignore text eol=lf
+.gitattributes text eol=lf
+.gitmodules text eol=lf
+
+# 文档文件
+LICENSE text eol=lf
+README* text eol=lf
+CHANGELOG* text eol=lf
+CONTRIBUTING* text eol=lf
+
+# 配置和脚本文件
+.editorconfig text eol=lf
+.pylintrc text eol=lf
+.ruff.toml text eol=lf
+.prettierrc text eol=lf
+.eslintrc text eol=lf
