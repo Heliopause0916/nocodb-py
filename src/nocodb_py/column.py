@@ -438,3 +438,159 @@ class NocoDBColumn:
         with self._cache_lock:
             self._column_info_cache = None
             self._column_info_timestamp = 0
+
+
+class NocoDBSchema:
+    """
+    NocoDB Table Schema for Python
+    
+    This class represents the schema (structure) of a NocoDB table, providing
+    column metadata and validation rules for record operations.
+    
+    Attributes:
+        table (NocoDBTable): The NocoDB table instance
+        _columns_info (List[Dict]): List of column information
+        _columns_by_title (Dict[str, Dict]): Column info indexed by title
+        _columns_by_id (Dict[str, Dict]): Column info indexed by ID
+        _writable_columns (List[Dict]): List of writable columns
+        _readonly_columns (List[Dict]): List of read-only columns
+        _system_columns (List[Dict]): List of system columns
+    """
+    
+    def __init__(self, table: NocoDBTable):
+        """
+        Initialize the NocoDBSchema with a table instance
+        
+        Args:
+            table (NocoDBTable): The NocoDB table instance
+        """
+        self.table = table
+        self._columns_info = None
+        self._columns_by_title = None
+        self._columns_by_id = None
+        self._writable_columns = None
+        self._readonly_columns = None
+        self._system_columns = None
+    
+    def load_schema(self, force_refresh: bool = False) -> None:
+        """
+        Load the table schema information
+        
+        Args:
+            force_refresh (bool): Whether to force a refresh of the schema cache
+        """
+        columns_info = self.table.get_columns_full_info(force_refresh)
+        self._columns_info = columns_info
+        
+        # Build indexes for efficient lookup
+        self._columns_by_title = {col.get('title'): col for col in columns_info}
+        self._columns_by_id = {col.get('id'): col for col in columns_info}
+        
+        # Classify columns by their properties
+        self._writable_columns = []
+        self._readonly_columns = []
+        self._system_columns = []
+        
+        for col in columns_info:
+            if col.get('system') == 1:
+                self._system_columns.append(col)
+            elif col.get('readonly') == 1:
+                self._readonly_columns.append(col)
+            else:
+                self._writable_columns.append(col)
+    
+    def get_column_by_title(self, title: str) -> Optional[Dict]:
+        """
+        Get column information by column title
+        
+        Args:
+            title (str): The column title to look up
+            
+        Returns:
+            Optional[Dict]: Column information dictionary, or None if not found
+        """
+        if self._columns_by_title is None:
+            self.load_schema()
+        return self._columns_by_title.get(title) if self._columns_by_title else None
+    
+    def get_column_by_id(self, column_id: str) -> Optional[Dict]:
+        """
+        Get column information by column ID
+        
+        Args:
+            column_id (str): The column ID to look up
+            
+        Returns:
+            Optional[Dict]: Column information dictionary, or None if not found
+        """
+        if self._columns_by_id is None:
+            self.load_schema()
+        return self._columns_by_id.get(column_id) if self._columns_by_id else None
+    
+    def is_writable_field(self, field_name: str) -> bool:
+        """
+        Check if a field is writable (not system or read-only)
+        
+        Args:
+            field_name (str): The field name to check
+            
+        Returns:
+            bool: True if the field is writable, False otherwise
+        """
+        col_info = self.get_column_by_title(field_name)
+        if not col_info:
+            return False
+        return col_info.get('system', 0) == 0 and col_info.get('readonly', 0) == 0
+    
+    def get_writable_fields(self) -> List[str]:
+        """
+        Get all writable field titles
+        
+        Returns:
+            List[str]: List of writable field titles
+        """
+        if self._writable_columns is None:
+            self.load_schema()
+        return [col.get('title') for col in self._writable_columns] if self._writable_columns else []
+    
+    def get_system_fields(self) -> List[str]:
+        """
+        Get all system field titles
+        
+        Returns:
+            List[str]: List of system field titles
+        """
+        if self._system_columns is None:
+            self.load_schema()
+        return [col.get('title') for col in self._system_columns] if self._system_columns else []
+    
+    def get_readonly_fields(self) -> List[str]:
+        """
+        Get all read-only field titles
+        
+        Returns:
+            List[str]: List of read-only field titles
+        """
+        if self._readonly_columns is None:
+            self.load_schema()
+        return [col.get('title') for col in self._readonly_columns] if self._readonly_columns else []
+    
+    def get_all_fields(self) -> List[str]:
+        """
+        Get all field titles
+        
+        Returns:
+            List[str]: List of all field titles
+        """
+        if self._columns_by_title is None:
+            self.load_schema()
+        return list(self._columns_by_title.keys()) if self._columns_by_title else []
+    
+    def __str__(self) -> str:
+        """String representation of the schema"""
+        field_count = len(self._columns_by_title) if self._columns_by_title else 0
+        return f"NocoDBSchema(table={self.table}, fields={field_count})"
+    
+    def __repr__(self) -> str:
+        """Official string representation"""
+        return self.__str__()

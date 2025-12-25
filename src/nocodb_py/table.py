@@ -21,7 +21,7 @@ from .utils import parse_utc_datetime, count_of_nocodb_data
 from .client import NocoDBClient
 from .project import NocoDBProject
 if TYPE_CHECKING:
-    from .column import NocoDBColumn
+    from .column import NocoDBColumn, NocoDBSchema
 
 class RecordNotFoundError(Exception):
     """Exception raised when a record is not found in the table."""
@@ -63,6 +63,8 @@ class NocoDBTable:
         self._table_info_timestamp = 0
         self._columns_cache = None
         self._columns_timestamp = 0
+        self._schema_cache = None
+        self._schema_timestamp = 0
         self._cache_lock = threading.RLock()
 
     def __str__(self) -> str:
@@ -469,6 +471,40 @@ class NocoDBTable:
         with self._cache_lock:
             self._columns_cache = None
             self._columns_timestamp = 0
+    
+    def get_schema(self, force_refresh: bool = False) -> 'NocoDBSchema':
+        """
+        Get the table schema
+        
+        Args:
+            force_refresh (bool): Whether to force a refresh of the schema cache
+            
+        Returns:
+            NocoDBSchema: The table schema instance
+        """
+        with self._cache_lock:
+            current_time = time.time()
+            cache_ttl = self._cache_ttl
+            if(not force_refresh and
+               self._schema_cache is not None and
+               (cache_ttl is None or current_time - self._schema_timestamp < cache_ttl)
+               ):
+                return self._schema_cache
+
+            from .column import NocoDBSchema
+            schema = NocoDBSchema(self)
+            schema.load_schema(force_refresh)
+            self._schema_cache = schema
+            self._schema_timestamp = current_time
+            return schema
+    
+    def clear_schema_cache(self):
+        """
+        Clear schema cache
+        """
+        with self._cache_lock:
+            self._schema_cache = None
+            self._schema_timestamp = 0
 
     def list_records(self) -> List[Dict]:
         """

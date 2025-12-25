@@ -4,7 +4,12 @@ Filename: src/nocodb_py/record.py
 NocoDB Record and RecordSet classes for Python
 """
 
+import copy
 from typing import Dict, List, Any, Optional, Iterator
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .table import NocoDBTable
+    from .column import NocoDBSchema
 
 
 class NocoDBRecord:
@@ -14,15 +19,18 @@ class NocoDBRecord:
     Supports two states: online (attached to table) and offline (local data organization).
     
     Attributes:
-        data (Dict[str, Any]): All record fields including user data and system fields
+        _data (Dict[str, Any]): All record fields including user data and system fields
         _record_id (Optional[int]): Record ID, None for offline records
         _table_id (Optional[str]): Table ID, None for offline records
+        _schema (Optional[NocoDBSchema]): Table schema for field validation
+        _original_data_hash (int): Hash of original data for modification detection
     """
     
     def __init__(self,
                  data: Dict[str, Any],
                  record_id: Optional[int] = None,
-                 table_id: Optional[str] = None):
+                 table_id: Optional[str] = None,
+                 schema: Optional['NocoDBSchema'] = None):
         """
         Initialize NocoDB record
         
@@ -30,10 +38,20 @@ class NocoDBRecord:
             data: All record fields dictionary (user data + system fields)
             record_id: Record ID, None for offline records
             table_id: Table ID, None for offline records
+            schema: Table schema for field validation and classification
         """
-        self.data = data
+        # Deep copy data to prevent external modifications
+        self._data = copy.deepcopy(data) if data else {}
         self._record_id = record_id
         self._table_id = table_id
+        self._schema = schema
+        
+        # Track original data state for modification detection
+        self._original_data_hash = self._compute_data_hash()
+    
+    def _compute_data_hash(self) -> int:
+        """Compute hash of the current data for modification detection"""
+        return hash(frozenset(self._data.items()))
     
     @property
     def record_id(self) -> Optional[int]:
@@ -46,6 +64,11 @@ class NocoDBRecord:
         return self._table_id
     
     @property
+    def schema(self) -> Optional['NocoDBSchema']:
+        """Table schema, if available"""
+        return self._schema
+    
+    @property
     def is_attached(self) -> bool:
         """Whether the record is attached to a NocoDB table"""
         return self._record_id is not None and self._table_id is not None
@@ -54,6 +77,11 @@ class NocoDBRecord:
     def is_detached(self) -> bool:
         """Whether the record is offline (detached)"""
         return not self.is_attached
+    
+    @property
+    def is_modified(self) -> bool:
+        """Whether the record data has been modified since creation"""
+        return self._compute_data_hash() != self._original_data_hash
     
     def attach(self, table_id: str, record_id: int) -> None:
         """Attach offline record to a table"""
@@ -72,7 +100,7 @@ class NocoDBRecord:
         Returns:
             Dict: Record dictionary in NocoDB API format
         """
-        result = self.data.copy()
+        result = self._data.copy()
         
         # Add record ID if present
         if self._record_id is not None:
@@ -81,13 +109,14 @@ class NocoDBRecord:
         return result
     
     @classmethod
-    def from_api_format(cls, api_data: Dict[str, Any], table_id: Optional[str] = None) -> 'NocoDBRecord':
+    def from_api_format(cls, api_data: Dict[str, Any], table_id: Optional[str] = None, schema: Optional['NocoDBSchema'] = None) -> 'NocoDBRecord':
         """
         Create record object from NocoDB API response
         
         Args:
             api_data: Record data returned by NocoDB API
             table_id: Table ID, optional
+            schema: Table schema, optional
             
         Returns:
             NocoDBRecord: Created record object
@@ -105,25 +134,26 @@ class NocoDBRecord:
         return cls(
             data=data,
             record_id=record_id,
-            table_id=table_id
+            table_id=table_id,
+            schema=schema
         )
     
     def __getitem__(self, key: str) -> Any:
         """Dictionary-style access to user data"""
-        return self.data[key]
+        return self._data[key]
     
     def __setitem__(self, key: str, value: Any) -> None:
         """Dictionary-style setting of user data"""
-        self.data[key] = value
+        self._data[key] = value
     
     def get(self, key: str, default: Any = None) -> Any:
         """Safe access to user data"""
-        return self.data.get(key, default)
+        return self._data.get(key, default)
     
     def __str__(self) -> str:
         """String representation"""
         status = "attached" if self.is_attached else "detached"
-        return f"NocoDBRecord(record_id={self._record_id}, table_id={self._table_id}, status={status}, data={self.data})"
+        return f"NocoDBRecord(record_id={self._record_id}, table_id={self._table_id}, status={status}, data={self._data})"
     
     def __repr__(self) -> str:
         """Official string representation"""
