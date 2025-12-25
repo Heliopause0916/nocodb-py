@@ -10,6 +10,7 @@
     - [✅ 已实现功能](#-已实现功能)
     - [⏳ 待实现功能](#-待实现功能)
     - [核心代码文件](#核心代码文件)
+    - [NocoDBRecord规范总结](#nocodbrecord规范总结)
   - [技术架构](#技术架构)
     - [系统架构图](#系统架构图)
     - [API端点映射](#api端点映射)
@@ -32,17 +33,20 @@
   - [NocoDBRecord和NocoDBRecordSet设计规范](#nocodbrecord和nocodbrecordset设计规范)
     - [设计目标](#设计目标)
     - [NocoDBRecord类规范](#nocodbrecord类规范)
-      - [记录状态管理](#记录状态管理)
+      - [记录来源规范](#记录来源规范)
+      - [状态转换规范](#状态转换规范)
+      - [复制操作规范](#复制操作规范)
       - [数据访问接口](#数据访问接口)
-      - [复制操作规则](#复制操作规则)
     - [NocoDBRecordSet类规范](#nocodbrecordset类规范)
       - [集合操作接口](#集合操作接口)
+      - [状态管理规范](#状态管理规范)
       - [向后兼容性](#向后兼容性)
     - [集成架构](#集成架构)
     - [使用示例](#使用示例)
       - [基础记录操作](#基础记录操作)
       - [记录集合操作](#记录集合操作)
       - [与table.py集成](#与tablepy集成)
+      - [规范应用示例](#规范应用示例)
     - [设计原则](#设计原则)
   - [列类型验证系统设计](#列类型验证系统设计)
     - [验证器架构](#验证器架构)
@@ -99,11 +103,12 @@
 
 ### ✅ 已实现功能
 - **基础记录CRUD操作**：`list_records()`, `get_record()`, `create_records()`, `update_records()`, `delete_records()`, `count_records()`
-- **记录对象模型**：NocoDBRecord和NocoDBRecordSet类，支持在线/离线状态管理
+- **记录对象模型**：NocoDBRecord和NocoDBRecordSet类，支持明确的状态管理规范
 - **表结构支持**：NocoDBSchema类提供字段分类和只读属性检查
 - **只读列处理**：自动过滤系统列和用户定义只读列
 - **列名验证**：确保记录字段与表列名匹配
 - **拷贝和序列化支持**：核心类支持Python标准拷贝操作
+- **NocoDBRecord规范**：已实现明确的记录来源、状态转换和复制操作规范
 
 ### ⏳ 待实现功能
 - **列类型验证系统**：20+种列类型的验证和转换
@@ -114,8 +119,16 @@
 
 ### 核心代码文件
 - ✅ [`table.py`](../src/nocodb_py/table.py)：基础记录CRUD操作
-- ✅ [`record.py`](../src/nocodb_py/record.py)：记录对象模型
+- ✅ [`record.py`](../src/nocodb_py/record.py)：记录对象模型（已更新规范）
 - ✅ [`column.py`](../src/nocodb_py/column.py)：表结构定义
+
+### NocoDBRecord规范总结
+基于最新协商，NocoDBRecord遵循以下核心规范：
+
+1. **记录来源**：有且仅有两个来源 - API返回（attached）或本地生成（detached）
+2. **状态转换**：`create_record()`是唯一将detached变为attached的方法，状态不可逆
+3. **复制操作**：ID和table_id无法复制，系统列和高级列复制策略需单独讨论
+4. **状态保护**：防止非法状态转换，确保数据一致性
 
 ## 技术架构
 
@@ -239,25 +252,33 @@ def update_records(self,
 ## NocoDBRecord和NocoDBRecordSet设计规范
 
 ### 设计目标
-NocoDBRecord和NocoDBRecordSet类旨在提供更好的记录数据结构和状态管理，支持在线/离线记录操作，遵循明确的设计规范。
+NocoDBRecord和NocoDBRecordSet类旨在提供简单直观的记录数据结构和状态管理，遵循明确的设计规范，降低用户学习成本。
 
 ### NocoDBRecord类规范
 
-#### 记录状态管理
-- **在线记录**：已附加到表，包含系统字段（ID、创建时间等）
-- **离线记录**：本地数据组织，不包含系统字段
-- **状态检测**：通过`is_attached`和`is_detached`属性判断状态
-- **修改检测**：通过数据哈希值检测记录是否被修改
+#### 记录来源规范
+NocoDBRecord的来源有且仅有两个：
+1. **API返回的记录**：通过`get_record()`或`list_records()`方法返回，天然为attached状态，拥有ID和table_id
+2. **本地生成的记录**：用户从Python本地创建，仍未保存到table，为detached状态
+
+#### 状态转换规范
+1. **创建操作**：`create_record()`是唯一将detached记录变为attached的方法
+2. **状态不可逆**：一旦记录拥有ID（attached），将永远不能变回detached状态
+3. **状态保护**：防止非法状态转换，确保数据一致性
+
+#### 复制操作规范
+1. **引用赋值**：使用等于号进行引用赋值是可接受的，但需要注意数据共享风险
+2. **copy/deepcopy**：使用`copy.copy()`或`copy.deepcopy()`时：
+   - ID和table_id无法复制，复制后的记录变为detached状态
+   - 系统列（Id、CreatedAt、UpdatedAt等）无法复制
+   - 高级列（link、attachment等）的复制策略需单独讨论
+   - 用户数据字段正常复制
 
 #### 数据访问接口
 - **字典式访问**：支持`record["field"]`和`record.get("field")`操作
 - **属性访问**：通过`record_id`、`table_id`、`schema`属性访问元数据
 - **API格式转换**：`to_api_format()`和`from_api_format()`方法
-
-#### 复制操作规则
-- **浅拷贝**：使用`copy.copy()`创建新记录，共享数据引用
-- **深拷贝**：使用`copy.deepcopy()`创建完全独立的记录副本
-- **状态保持**：拷贝操作保持原始记录的状态（在线/离线）
+- **状态检测**：通过`is_attached`和`is_detached`属性判断状态
 
 ### NocoDBRecordSet类规范
 
@@ -266,6 +287,12 @@ NocoDBRecord和NocoDBRecordSet类旨在提供更好的记录数据结构和状�
 - **索引访问**：支持`record_set[0]`索引访问
 - **长度查询**：支持`len(record_set)`长度查询
 - **转换方法**：`to_list()`和`to_api_format_list()`方法
+
+#### 状态管理规范
+1. **来源**：`list_records()`返回的RecordSet天然attached
+2. **创建**：用户可创建本地RecordSet（detached）
+3. **状态**：RecordSet状态由其包含的Record决定
+4. **复制**：RecordSet复制时，其包含的Record也遵循上述复制规则
 
 #### 向后兼容性
 - **API格式兼容**：确保与现有table.py方法的兼容性
@@ -304,15 +331,16 @@ graph TD
 
 #### 基础记录操作
 ```python
-# 创建离线记录
+# 创建离线记录（来源：本地生成）
 record = NocoDBRecord(data={"name": "John", "age": 30})
 record["city"] = "New York"
 
-# 附加到表
-record.attach(table_id="table_abc", record_id=123)
+# 通过create_record变为attached状态
+created_record = table.create_records(record.to_api_format())
 
-# 转换为API格式
-api_data = record.to_api_format()
+# 获取在线记录（来源：API返回）
+api_record = table.get_record(123)
+record = NocoDBRecord.from_api_format(api_record, table._table_id)
 ```
 
 #### 记录集合操作
@@ -343,12 +371,30 @@ api_response = table.get_record(123)
 record = NocoDBRecord.from_api_format(api_response, table._table_id)
 ```
 
+#### 规范应用示例
+```python
+# 记录来源规范示例
+record1 = table.get_record(1)  # 来源：API返回，attached状态
+record2 = NocoDBRecord({"name": "New"})  # 来源：本地生成，detached状态
+
+# 状态转换规范示例
+if record2.is_detached:
+    created = table.create_records(record2.to_api_format())  # 唯一变为attached的方法
+    # record2现在拥有ID，状态不可逆
+
+# 复制操作规范示例
+import copy
+record_copy = copy.copy(record1)  # ID和table_id无法复制，变为detached状态
+# 引用赋值
+record_ref = record1  # 可接受，但注意数据共享风险
+```
+
 ### 设计原则
-1. **状态明确**：清晰区分在线和离线记录状态
-2. **数据安全**：深拷贝保护原始数据，防止意外修改
-3. **API兼容**：确保与现有NocoDB API的完全兼容
-4. **渐进采用**：支持从简单字典到复杂对象的渐进式迁移
-5. **性能优化**：最小化内存占用，最大化操作效率
+1. **来源明确**：记录来源有且仅有两个，简化状态管理
+2. **状态不可逆**：attached状态一旦获得，永远不能变回detached
+3. **复制安全**：ID和系统列无法复制，防止状态混乱
+4. **API兼容**：确保与现有NocoDB API的完全兼容
+5. **用户友好**：降低学习成本，提供直观的操作接口
 
 
 ## 列类型验证系统设计
