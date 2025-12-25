@@ -14,45 +14,29 @@ class NocoDBRecord:
     Supports two states: online (attached to table) and offline (local data organization).
     
     Attributes:
-        data (Dict[str, Any]): User-defined data fields
+        data (Dict[str, Any]): All record fields including user data and system fields
         _record_id (Optional[int]): Record ID, None for offline records
         _table_id (Optional[str]): Table ID, None for offline records
-        created_at (Optional[str]): Creation timestamp
-        updated_at (Optional[str]): Last update timestamp
-        nc_created_by (Optional[str]): Creator user ID
-        nc_updated_by (Optional[str]): Last modifier user ID
     """
     
-    def __init__(self, 
+    def __init__(self,
                  data: Dict[str, Any],
                  record_id: Optional[int] = None,
-                 table_id: Optional[str] = None,
-                 created_at: Optional[str] = None,
-                 updated_at: Optional[str] = None,
-                 nc_created_by: Optional[str] = None,
-                 nc_updated_by: Optional[str] = None):
+                 table_id: Optional[str] = None):
         """
         Initialize NocoDB record
         
         Args:
-            data: User-defined data fields dictionary
+            data: All record fields dictionary (user data + system fields)
             record_id: Record ID, None for offline records
             table_id: Table ID, None for offline records
-            created_at: Creation timestamp
-            updated_at: Last update timestamp
-            nc_created_by: Creator user ID
-            nc_updated_by: Last modifier user ID
         """
         self.data = data
         self._record_id = record_id
         self._table_id = table_id
-        self.created_at = created_at
-        self.updated_at = updated_at
-        self.nc_created_by = nc_created_by
-        self.nc_updated_by = nc_updated_by
     
     @property
-    def id(self) -> Optional[int]:
+    def record_id(self) -> Optional[int]:
         """Record ID, None for offline records"""
         return self._record_id
     
@@ -88,22 +72,12 @@ class NocoDBRecord:
         Returns:
             Dict: Record dictionary in NocoDB API format
         """
-        result = {}
+        result = self.data.copy()
         
-        # System fields
+        # Add record ID if present
         if self._record_id is not None:
             result["Id"] = self._record_id
-        if self.created_at is not None:
-            result["CreatedAt"] = self.created_at
-        if self.updated_at is not None:
-            result["UpdatedAt"] = self.updated_at
-        if self.nc_created_by is not None:
-            result["nc_created_by"] = self.nc_created_by
-        if self.nc_updated_by is not None:
-            result["nc_updated_by"] = self.nc_updated_by
-        
-        # User data fields
-        result.update(self.data)
+            
         return result
     
     @classmethod
@@ -118,24 +92,20 @@ class NocoDBRecord:
         Returns:
             NocoDBRecord: Created record object
         """
-        # System field set (based on identified three types of special columns)
-        system_fields = {
-            "Id", "CreatedAt", "UpdatedAt", "nc_created_by", "nc_updated_by", 
-            "nc_order", "CreatedTime", "LastModifiedTime", "CreatedBy", "LastModifiedBy"
-        }
+        # Extract record ID from API data
+        record_id = api_data.get("Id")
         
-        # Separate system fields and user fields
-        system_data = {k: v for k, v in api_data.items() if k in system_fields}
-        user_data = {k: v for k, v in api_data.items() if k not in system_fields}
+        # Create a copy of the API data (all fields including system fields)
+        data = api_data.copy()
         
+        # Remove Id field from data to avoid duplication
+        if "Id" in data:
+            del data["Id"]
+            
         return cls(
-            data=user_data,
-            record_id=system_data.get("Id"),
-            table_id=table_id,
-            created_at=system_data.get("CreatedAt") or system_data.get("CreatedTime"),
-            updated_at=system_data.get("UpdatedAt") or system_data.get("LastModifiedTime"),
-            nc_created_by=system_data.get("nc_created_by") or system_data.get("CreatedBy"),
-            nc_updated_by=system_data.get("nc_updated_by") or system_data.get("LastModifiedBy")
+            data=data,
+            record_id=record_id,
+            table_id=table_id
         )
     
     def __getitem__(self, key: str) -> Any:
@@ -153,7 +123,7 @@ class NocoDBRecord:
     def __str__(self) -> str:
         """String representation"""
         status = "attached" if self.is_attached else "detached"
-        return f"NocoDBRecord(id={self._record_id}, table_id={self._table_id}, status={status}, data_keys={list(self.data.keys())})"
+        return f"NocoDBRecord(record_id={self._record_id}, table_id={self._table_id}, status={status}, data={self.data})"
     
     def __repr__(self) -> str:
         """Official string representation"""
