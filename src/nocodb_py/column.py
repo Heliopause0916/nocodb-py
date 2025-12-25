@@ -191,20 +191,18 @@ class NocoDBColumn:
         _column_id (str): The unique column identifier
     """
 
-    def __init__(self, table: NocoDBTable, column_id: str, xc_token: str, timeout: int = 30, cache_ttl: Optional[int] = 300):
+    def __init__(self, table: NocoDBTable, column_id: str, timeout: int = 30, cache_ttl: Optional[int] = 300):
         """
         Initialize the NocoDBColumn with table and column ID
         
         Args:
             table (NocoDBTable): The NocoDB table instance
             column_id (str): The unique column identifier
-            xc_token (str): The NocoDB token for authentication
             timeout (int): Request timeout in seconds
             cache_ttl (Optional[int]): Cache time-to-live in seconds
         """
         self._table = table
         self._column_id = column_id
-        self._xc_token = xc_token
         self._timeout = timeout
         self._cache_ttl = cache_ttl
 
@@ -283,103 +281,6 @@ class NocoDBColumn:
         """
         return f"/api/v2/meta/columns/{self._column_id}"
 
-    def _get(self, path: str, **kwargs) -> Dict:
-        """
-        Send a GET request to the NocoDB API
-        
-        Args:
-            path (str): The API endpoint path
-            **kwargs: Additional arguments to pass to requests.get
-            
-        Returns:
-            Dict: The JSON response from the API
-            
-        Raises:
-            requests.exceptions.RequestException: If the request fails
-        """
-        url = f"{self._table.get_project().get_client().get_base_url()}{path}"
-        headers = {"xc-token": self._xc_token}
-        if 'headers' in kwargs:
-            headers.update(kwargs['headers'])
-            del kwargs['headers']
-
-        response = requests.get(url, headers=headers, timeout=self._timeout, **kwargs)
-        response.raise_for_status()
-        return response.json()
-
-    def _post(self, path: str, data: Optional[Dict] = None, **kwargs) -> Dict:
-        """
-        Send a POST request to the NocoDB API
-        
-        Args:
-            path (str): The API endpoint path
-            data (Optional[Dict]): The data to send in the request body
-            **kwargs: Additional arguments to pass to requests.post
-            
-        Returns:
-            Dict: The JSON response from the API
-            
-        Raises:
-            requests.exceptions.RequestException: If the request fails
-        """
-        url = f"{self._table.get_project().get_client().get_base_url()}{path}"
-        headers = {"xc-token": self._xc_token}
-        if 'headers' in kwargs:
-            headers.update(kwargs['headers'])
-            del kwargs['headers']
-
-        response = requests.post(url, headers=headers, json=data, timeout=self._timeout, **kwargs)
-        response.raise_for_status()
-        return response.json()
-
-    def _patch(self, path: str, data: Optional[Dict] = None, **kwargs) -> Dict:
-        """
-        Send a PATCH request to the NocoDB API
-        
-        Args:
-            path (str): The API endpoint path
-            data (Optional[Dict]): The data to send in the request body
-            **kwargs: Additional arguments to pass to requests.patch
-            
-        Returns:
-            Dict: The JSON response from the API
-            
-        Raises:
-            requests.exceptions.RequestException: If the request fails
-        """
-        url = f"{self._table.get_project().get_client().get_base_url()}{path}"
-        headers = {"xc-token": self._xc_token}
-        if 'headers' in kwargs:
-            headers.update(kwargs['headers'])
-            del kwargs['headers']
-
-        response = requests.patch(url, headers=headers, json=data, timeout=self._timeout, **kwargs)
-        response.raise_for_status()
-        return response.json()
-
-    def _delete(self, path: str, **kwargs) -> Dict:
-        """
-        Send a DELETE request to the NocoDB API
-        
-        Args:
-            path (str): The API endpoint path
-            **kwargs: Additional arguments to pass to requests.delete
-            
-        Returns:
-            Dict: The JSON response from the API
-            
-        Raises:
-            requests.exceptions.RequestException: If the request fails
-        """
-        url = f"{self._table.get_project().get_client().get_base_url()}{path}"
-        headers = {"xc-token": self._xc_token}
-        if 'headers' in kwargs:
-            headers.update(kwargs['headers'])
-            del kwargs['headers']
-
-        response = requests.delete(url, headers=headers, timeout=self._timeout, **kwargs)
-        response.raise_for_status()
-        return response.json()
 
     def get_full_info(self, force_refresh: bool = False) -> Dict:
         """
@@ -400,7 +301,9 @@ class NocoDBColumn:
                ):
                 return self._column_info_cache
 
-            self._column_info_cache = self._get(
+            # pylint: disable=protected-access
+            # Reason: NocoDBClient._get is intentionally accessible to NocoDB-related classes
+            self._column_info_cache = self._table.get_project().get_client()._get(
                 f"{self.get_meta_v2_prefix()}"
             )
             self._column_info_timestamp = current_time

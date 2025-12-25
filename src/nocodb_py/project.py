@@ -32,7 +32,7 @@ class NocoDBProject:
         _project_id (str): The unique project identifier
     """
     # pylint: disable=too-many-arguments,too-many-positional-arguments
-    def __init__(self, client: NocoDBClient, project_id: str, xc_token: str,
+    def __init__(self, client: NocoDBClient, project_id: str,
                  timeout: int = 30, cache_ttl: Optional[int] = 300):
         """
         Initialize the NocoDBProject with client and project ID
@@ -40,11 +40,9 @@ class NocoDBProject:
         Args:
             client (NocoDBClient): The NocoDB client instance
             project_id (str): The unique project identifier
-            xc_token (str): The NocoDB token for authentication
         """
         self._client = client
         self._project_id = project_id
-        self._xc_token = xc_token
         self._timeout = timeout
         self._cache_ttl = cache_ttl
         # Project-specific cache
@@ -95,7 +93,7 @@ class NocoDBProject:
         Returns:
             int: Hash value based on immutable attributes that define identity
         """
-        return hash((self._client, self._project_id, self._xc_token))
+        return hash((self._client, self._project_id))
 
     def __copy__(self):
         """
@@ -104,7 +102,7 @@ class NocoDBProject:
         Returns:
             NocoDBProject: A new project instance with same configuration but fresh cache
         """
-        new_project = NocoDBProject(self._client, self._project_id, self._xc_token,
+        new_project = NocoDBProject(self._client, self._project_id,
                                   self._timeout, self._cache_ttl)
         # Reset cache state
         new_project._project_info_cache = None
@@ -181,90 +179,6 @@ class NocoDBProject:
         """
         return self._client
 
-    def _get(self, path: str, **kwargs) -> Dict:
-        url = f"{self._client.get_base_url()}{path}"
-        headers = {"xc-token": self._xc_token}
-        if 'headers' in kwargs:
-            headers.update(kwargs['headers'])
-            del kwargs['headers']
-
-        response = requests.get(url, headers=headers, timeout=self._timeout, **kwargs)
-        response.raise_for_status()
-        return response.json()
-
-    def _delete(self, path: str, **kwargs) -> Dict:
-        """
-        Send a DELETE request to the NocoDB API
-        
-        Args:
-            path (str): The API endpoint path
-            **kwargs: Additional arguments to pass to requests.delete
-            
-        Returns:
-            Dict: The JSON response from the API
-            
-        Raises:
-            requests.exceptions.RequestException: If the request fails
-        """
-        url = f"{self._client.get_base_url()}{path}"
-        headers = {"xc-token": self._xc_token}
-        if 'headers' in kwargs:
-            headers.update(kwargs['headers'])
-            del kwargs['headers']
-
-        response = requests.delete(url, headers=headers, timeout=self._timeout, **kwargs)
-        response.raise_for_status()
-        return response.json()
-
-    def _patch(self, path: str, data: Optional[Dict] = None, **kwargs) -> Dict:
-        """
-        Send a PATCH request to the NocoDB API
-        
-        Args:
-            path (str): The API endpoint path
-            data (Optional[Dict]): The data to send in the request body
-            **kwargs: Additional arguments to pass to requests.patch
-            
-        Returns:
-            Dict: The JSON response from the API
-            
-        Raises:
-            requests.exceptions.RequestException: If the request fails
-        """
-        url = f"{self._client.get_base_url()}{path}"
-        headers = {"xc-token": self._xc_token}
-        if 'headers' in kwargs:
-            headers.update(kwargs['headers'])
-            del kwargs['headers']
-
-        response = requests.patch(url, headers=headers, json=data, timeout=self._timeout, **kwargs)
-        response.raise_for_status()
-        return response.json()
-
-    def _post(self, path: str, data: Optional[Dict] = None, **kwargs) -> Dict:
-        """
-        Send a POST request to the NocoDB API
-        
-        Args:
-            path (str): The API endpoint path
-            data (Optional[Dict]): The data to send in the request body
-            **kwargs: Additional arguments to pass to requests.post
-            
-        Returns:
-            Dict: The JSON response from the API
-            
-        Raises:
-            requests.exceptions.RequestException: If the request fails
-        """
-        url = f"{self._client.get_base_url()}{path}"
-        headers = {"xc-token": self._xc_token}
-        if 'headers' in kwargs:
-            headers.update(kwargs['headers'])
-            del kwargs['headers']
-
-        response = requests.post(url, headers=headers, json=data, timeout=self._timeout, **kwargs)
-        response.raise_for_status()
-        return response.json()
 
     def get_full_info(self, force_refresh: bool = False) -> Dict:
         """
@@ -282,7 +196,9 @@ class NocoDBProject:
                ):
                 return self._project_info_cache
 
-            self._project_info_cache = self._get(
+            # pylint: disable=protected-access
+            # Reason: NocoDBClient._get is intentionally accessible to NocoDB-related classes
+            self._project_info_cache = self._client._get(
                 f"{self._client.get_meta_v2_prefix()}/bases/{self._project_id}"
                 )
             self._project_info_timestamp = current_time
@@ -319,8 +235,10 @@ class NocoDBProject:
             params = {
                 "includeM2M": "true" if include_m2m else "false"
             }
-            self._tables_cache = self._get(f"{self.get_meta_v2_prefix()}/tables",
-                                           params=params)
+            # pylint: disable=protected-access
+            # Reason: NocoDBClient._get is intentionally accessible to NocoDB-related classes
+            self._tables_cache = self._client._get(f"{self.get_meta_v2_prefix()}/tables",
+                                                   params=params)
             self._tables_timestamp = current_time
             self._last_include_m2m = include_m2m  # Store the parameter value
             return self._tables_cache
@@ -443,7 +361,6 @@ class NocoDBProject:
         from .table import NocoDBTable
         return NocoDBTable(self,
                            table_id=table_id,
-                           xc_token=self._xc_token,
                            **kwargs)
 
     def get_meta_v2_prefix(self) -> str:

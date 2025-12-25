@@ -283,6 +283,23 @@ class NocoDBClient:
             self._projects_timeout = 0
 
     def _get(self, path: str, **kwargs) -> Dict:
+        """
+        Send a GET request to the NocoDB API
+        
+        Note: This method is intended for internal use by NocoDB-related classes
+        (NocoDBProject, NocoDBTable, NocoDBColumn, etc.) and should not be called
+        directly by external code.
+        
+        Args:
+            path (str): The API endpoint path
+            **kwargs: Additional arguments to pass to requests.get
+            
+        Returns:
+            Dict: The JSON response from the API
+            
+        Raises:
+            requests.exceptions.RequestException: If the request fails
+        """
         url = f"{self._base_url}{path}"
         headers = {"xc-token": self._xc_token}
         if 'headers' in kwargs:
@@ -292,13 +309,17 @@ class NocoDBClient:
         response.raise_for_status()
         return response.json()
 
-    def _post(self, path: str, data: Optional[Dict] = None, **kwargs) -> Dict:
+    def _post(self, path: str, data: Optional[Union[Dict, List[Dict]]] = None, **kwargs) -> Dict:
         """
         Send a POST request to the NocoDB API
         
+        Note: This method is intended for internal use by NocoDB-related classes
+        (NocoDBProject, NocoDBTable, NocoDBColumn, etc.) and should not be called
+        directly by external code.
+        
         Args:
             path (str): The API endpoint path
-            data (Optional[Dict]): The data to send in the request body
+            data (Optional[Union[Dict, List[Dict]]]): The data to send in the request body
             **kwargs: Additional arguments to pass to requests.post
             
         Returns:
@@ -316,12 +337,17 @@ class NocoDBClient:
         response.raise_for_status()
         return response.json()
 
-    def _delete(self, path: str, **kwargs) -> Any:
+    def _delete(self, path: str, data: Optional[Union[Dict, List[Dict]]] = None, **kwargs) -> Any:
         """
         Send a DELETE request to the NocoDB API
         
+        Note: This method is intended for internal use by NocoDB-related classes
+        (NocoDBProject, NocoDBTable, NocoDBColumn, etc.) and should not be called
+        directly by external code.
+        
         Args:
             path (str): The API endpoint path
+            data (Optional[Union[Dict, List[Dict]]]): The data to send in the request body
             **kwargs: Additional arguments to pass to requests.delete
             
         Returns:
@@ -335,17 +361,21 @@ class NocoDBClient:
         if 'headers' in kwargs:
             headers.update(kwargs['headers'])
             del kwargs['headers']
-        response = requests.delete(url, headers=headers, timeout=self._timeout, **kwargs)
+        response = requests.delete(url, headers=headers, json=data, timeout=self._timeout, **kwargs)
         response.raise_for_status()
         return response.json()
 
-    def _patch(self, path: str, data: Optional[Dict] = None, **kwargs) -> Dict:
+    def _patch(self, path: str, data: Optional[Union[Dict, List[Dict]]] = None, **kwargs) -> Dict:
         """
         Send a PATCH request to the NocoDB API
         
+        Note: This method is intended for internal use by NocoDB-related classes
+        (NocoDBProject, NocoDBTable, NocoDBColumn, etc.) and should not be called
+        directly by external code.
+        
         Args:
             path (str): The API endpoint path
-            data (Optional[Dict]): The data to send in the request body
+            data (Optional[Union[Dict, List[Dict]]]): The data to send in the request body
             **kwargs: Additional arguments to pass to requests.patch
             
         Returns:
@@ -598,7 +628,6 @@ class NocoDBClient:
         from .project import NocoDBProject
         return NocoDBProject(self,
                              project_id=project_id,
-                             xc_token=self._xc_token,
                              **kwargs)
 
     get_base = get_project
@@ -709,7 +738,7 @@ class NocoDBClient:
                 raise ValueError("Project ID not included in response")
             # pylint: disable=import-outside-toplevel
             from .project import NocoDBProject
-            project_obj = NocoDBProject(self, project_id, self._xc_token,
+            project_obj = NocoDBProject(self, project_id,
                                        timeout=self._timeout, cache_ttl=self._cache_ttl)
             return project_obj
         elif return_type == 'json':
@@ -907,7 +936,7 @@ class NocoDBClient:
             project.clear_project_info_cache()
         
         if return_type == 'object':
-            project_obj = NocoDBProject(self, project_id, self._xc_token,
+            project_obj = NocoDBProject(self, project_id,
                                        timeout=self._timeout, cache_ttl=self._cache_ttl)
             return project_obj
         elif return_type == 'json':

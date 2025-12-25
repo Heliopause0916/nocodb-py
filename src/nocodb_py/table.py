@@ -42,7 +42,7 @@ class NocoDBTable:
         _table_id (str): The unique table identifier
     """
 
-    def __init__(self, project: NocoDBProject, table_id: str, xc_token: str, timeout: int = 30, cache_ttl: Optional[int] = 300):
+    def __init__(self, project: NocoDBProject, table_id: str, timeout: int = 30, cache_ttl: Optional[int] = 300):
         """
         Initialize the NocoDBTable with project and table ID
         
@@ -54,7 +54,6 @@ class NocoDBTable:
         """
         self._project = project
         self._table_id = table_id
-        self._xc_token = xc_token
         self._timeout = timeout
         self._cache_ttl = cache_ttl
 
@@ -115,7 +114,7 @@ class NocoDBTable:
         Returns:
             NocoDBTable: A new table instance with same configuration but fresh cache
         """
-        new_table = NocoDBTable(self._project, self._table_id, self._xc_token,
+        new_table = NocoDBTable(self._project, self._table_id,
                               self._timeout, self._cache_ttl)
         # Reset cache state
         new_table._table_info_cache = None
@@ -207,91 +206,6 @@ class NocoDBTable:
         """
         return f"/api/v2/tables/{self._table_id}"
 
-    def _get(self, path: str, **kwargs) -> Dict:
-        url = f"{self._project.get_client().get_base_url()}{path}"
-        headers = {"xc-token": self._xc_token}
-        if 'headers' in kwargs:
-            headers.update(kwargs['headers'])
-            del kwargs['headers']
-
-        response = requests.get(url, headers=headers, timeout=self._timeout, **kwargs)
-        response.raise_for_status()
-        return response.json()
-
-    def _delete(self, path: str, data: Optional[Union[Dict, List[Dict]]] = None, **kwargs) -> Dict:
-        """
-        Send a DELETE request to the NocoDB API
-        
-        Args:
-            path (str): The API endpoint path
-            data (Optional[Union[Dict, List[Dict]]]): The data to send in the request body
-            **kwargs: Additional arguments to pass to requests.delete
-            
-        Returns:
-            Dict: The JSON response from the API
-            
-        Raises:
-            requests.exceptions.RequestException: If the request fails
-        """
-        url = f"{self._project.get_client().get_base_url()}{path}"
-        headers = {"xc-token": self._xc_token}
-        if 'headers' in kwargs:
-            headers.update(kwargs['headers'])
-            del kwargs['headers']
-
-        response = requests.delete(url, headers=headers, json=data, timeout=self._timeout, **kwargs)
-        response.raise_for_status()
-        return response.json()
-
-    def _patch(self, path: str, data: Optional[Union[Dict, List[Dict]]] = None, **kwargs) -> Dict:
-        """
-        Send a PATCH request to the NocoDB API
-        
-        Args:
-            path (str): The API endpoint path
-            data (Optional[Union[Dict, List[Dict]]]): The data to send in the request body
-            **kwargs: Additional arguments to pass to requests.patch
-            
-        Returns:
-            Dict: The JSON response from the API
-            
-        Raises:
-            requests.exceptions.RequestException: If the request fails
-        """
-        url = f"{self._project.get_client().get_base_url()}{path}"
-        headers = {"xc-token": self._xc_token}
-        if 'headers' in kwargs:
-            headers.update(kwargs['headers'])
-            del kwargs['headers']
-
-        response = requests.patch(url, headers=headers, json=data, timeout=self._timeout, **kwargs)
-        response.raise_for_status()
-        return response.json()
-
-    def _post(self, path: str, data: Optional[Union[Dict, List[Dict]]] = None, **kwargs) -> Dict:
-        """
-        Send a POST request to the NocoDB API
-        
-        Args:
-            path (str): The API endpoint path
-            data (Optional[Union[Dict, List[Dict]]]): The data to send in the request body
-            **kwargs: Additional arguments to pass to requests.post
-            
-        Returns:
-            Dict: The JSON response from the API
-            
-        Raises:
-            requests.exceptions.RequestException: If the request fails
-        """
-        url = f"{self._project.get_client().get_base_url()}{path}"
-        headers = {"xc-token": self._xc_token}
-        if 'headers' in kwargs:
-            headers.update(kwargs['headers'])
-            del kwargs['headers']
-
-        response = requests.post(url, headers=headers, json=data, timeout=self._timeout, **kwargs)
-        response.raise_for_status()
-        return response.json()
 
     def get_full_info(self, force_refresh: bool = False) -> Dict:
         """
@@ -312,7 +226,9 @@ class NocoDBTable:
                ):
                 return self._table_info_cache
 
-            self._table_info_cache = self._get(
+            # pylint: disable=protected-access
+            # Reason: NocoDBClient._get is intentionally accessible to NocoDB-related classes
+            self._table_info_cache = self._project.get_client()._get(
                 f"{self.get_meta_v2_prefix()}"
             )
             self._table_info_timestamp = current_time
@@ -451,7 +367,6 @@ class NocoDBTable:
         return NocoDBColumn(
             table=self,
             column_id=column_id,
-            xc_token=self._xc_token,
             timeout=self._timeout,
             cache_ttl=self._cache_ttl
         )
@@ -514,7 +429,9 @@ class NocoDBTable:
             List[Dict]: A list of records, each record is a dictionary.
         """
         path = f"{self.get_data_v2_prefix()}/records"
-        response = self._get(path)
+        # pylint: disable=protected-access
+        # Reason: NocoDBClient._get is intentionally accessible to NocoDB-related classes
+        response = self._project.get_client()._get(path)
         return response.get("list", [])
     
     get_records = list_records
@@ -538,7 +455,9 @@ class NocoDBTable:
             API response format: {"count": 1}
         """
         path = f"{self.get_data_v2_prefix()}/records/count"
-        response = self._get(path)
+        # pylint: disable=protected-access
+        # Reason: NocoDBClient._get is intentionally accessible to NocoDB-related classes
+        response = self._project.get_client()._get(path)
         
         # Validate response format
         if not isinstance(response, dict):
@@ -574,7 +493,9 @@ class NocoDBTable:
         """
         try:
             path = f"{self.get_data_v2_prefix()}/records/{record_id}"
-            response = self._get(path)
+            # pylint: disable=protected-access
+            # Reason: NocoDBClient._get is intentionally accessible to NocoDB-related classes
+            response = self._project.get_client()._get(path)
             return response
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
@@ -668,7 +589,9 @@ class NocoDBTable:
             
             # Send POST request
             path = f"{self.get_data_v2_prefix()}/records"
-            response = self._post(path, data=filtered_record)
+            # pylint: disable=protected-access
+            # Reason: NocoDBClient._post is intentionally accessible to NocoDB-related classes
+            response = self._project.get_client()._post(path, data=filtered_record)
             
             # Return the created record ID
             return response
@@ -687,7 +610,9 @@ class NocoDBTable:
             
             # Send POST request with batch data
             path = f"{self.get_data_v2_prefix()}/records"
-            response = self._post(path, data=filtered_records)
+            # pylint: disable=protected-access
+            # Reason: NocoDBClient._post is intentionally accessible to NocoDB-related classes
+            response = self._project.get_client()._post(path, data=filtered_records)
             
             # Return the list of created record IDs
             return response
@@ -756,7 +681,9 @@ class NocoDBTable:
             
             # Send PATCH request
             path = f"{self.get_data_v2_prefix()}/records"
-            response = self._patch(path, data=filtered_record)
+            # pylint: disable=protected-access
+            # Reason: NocoDBClient._patch is intentionally accessible to NocoDB-related classes
+            response = self._project.get_client()._patch(path, data=filtered_record)
             
             # Return the updated record ID
             return response
@@ -771,7 +698,9 @@ class NocoDBTable:
             
             # Send PATCH request with batch data
             path = f"{self.get_data_v2_prefix()}/records"
-            response = self._patch(path, data=filtered_records)
+            # pylint: disable=protected-access
+            # Reason: NocoDBClient._patch is intentionally accessible to NocoDB-related classes
+            response = self._project.get_client()._patch(path, data=filtered_records)
             
             # Return the list of updated record IDs
             return response
@@ -826,7 +755,9 @@ class NocoDBTable:
             
             # Send DELETE request
             path = f"{self.get_data_v2_prefix()}/records"
-            response = self._delete(path, data=validated_record)
+            # pylint: disable=protected-access
+            # Reason: NocoDBClient._delete is intentionally accessible to NocoDB-related classes
+            response = self._project.get_client()._delete(path, data=validated_record)
             
             # Return the deletion result
             return response
@@ -841,7 +772,9 @@ class NocoDBTable:
             
             # Send DELETE request with batch data
             path = f"{self.get_data_v2_prefix()}/records"
-            response = self._delete(path, data=validated_records)
+            # pylint: disable=protected-access
+            # Reason: NocoDBClient._delete is intentionally accessible to NocoDB-related classes
+            response = self._project.get_client()._delete(path, data=validated_records)
             
             # Return the list of deletion results
             return response
