@@ -23,8 +23,9 @@ graph TD
 - **NocoDBProject**: 项目管理，包含表格操作
 - **NocoDBTable**: 表格管理，包含列和数据操作
 - **NocoDBColumn**: 列管理，包含列类型验证和转换功能
-- **NocoDBRecord**: 记录对象，封装记录数据和元数据，支持在线/离线状态管理
-- **NocoDBRecordSet**: 记录集合，封装多个记录和集合操作
+- **NocoDBRecord**: 记录对象，封装记录数据和元数据，支持在线/离线状态管理，遵循明确的设计规范
+- **NocoDBRecordSet**: 记录集合，封装多个记录和集合操作，遵循明确的设计规范
+- **NocoDBSchema**: 表结构定义类，提供列元数据和字段分类功能
 
 ## 源代码路径
 
@@ -33,8 +34,8 @@ graph TD
 - [`src/nocodb_py/workspace.py`](../../../src/nocodb_py/workspace.py) - 工作区管理类（云实例专用）
 - [`src/nocodb_py/project.py`](../../../src/nocodb_py/project.py) - 项目管理类
 - [`src/nocodb_py/table.py`](../../../src/nocodb_py/table.py) - 表格管理类
-- [`src/nocodb_py/column.py`](../../../src/nocodb_py/column.py) - 列管理类，包含列类型验证和转换功能
-- [`src/nocodb_py/record.py`](../../../src/nocodb_py/record.py) - 记录管理类，包含记录对象和记录集合
+- [`src/nocodb_py/column.py`](../../../src/nocodb_py/column.py) - 列管理类，包含列类型验证和转换功能，以及NocoDBSchema类
+- [`src/nocodb_py/record.py`](../../../src/nocodb_py/record.py) - 记录管理类，包含记录对象和记录集合，遵循明确的设计规范
 - [`src/nocodb_py/utils.py`](../../../src/nocodb_py/utils.py) - 工具函数
 - [`src/nocodb_py/variable.py`](../../../src/nocodb_py/variable.py) - 配置变量
 

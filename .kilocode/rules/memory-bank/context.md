@@ -43,6 +43,9 @@
 - **新增**：实现了基础记录CRUD操作功能（`table.py`中的`list_records`、`get_record`、`create_records`、`update_records`、`delete_records`、`count_records`方法）
 - **新增**：创建了面向用户的列类别百科文档（`docs/column_encyclopedia.md`），提供详细的列类型参考和使用指南
 - **新增**：实现了NocoDBRecord和NocoDBRecordSet类，提供更好的记录数据结构和状态管理，支持在线/离线记录操作
+- **新增**：设计并实现了NocoDBSchema类，为记录操作提供表结构定义和字段分类功能
+- **新增**：完善了NocoDBRecord类的设计规范，明确了记录状态管理和复制操作规则
+- **新增**：更新了 `docs/plan.md`，添加了"NocoDBRecord和NocoDBRecordSet设计规范"章节，详细定义了记录状态管理、复制操作和RecordSet规范
 
 ## 下一步计划
 1. **完善记录操作功能**：测试和优化已实现的记录CRUD操作，实现列类型验证系统，特别关注三类特殊列的处理
@@ -58,7 +61,8 @@
   - **V1 API**：工作区、项目、表格的基础查询操作
   - **V2 API**：项目创建功能、表格元数据获取功能、列基本信息获取
   - **记录操作**：基础CRUD操作（列表、获取、创建、更新、删除、统计记录）
-  - **记录对象**：NocoDBRecord和NocoDBRecordSet类，支持在线/离线状态管理
+  - **记录对象**：NocoDBRecord和NocoDBRecordSet类，支持在线/离线状态管理，遵循明确的设计规范
+  - **Schema支持**：NocoDBSchema类提供表结构定义和字段分类功能
   - **缓存机制**：分层缓存，支持TTL配置和强制刷新
   - **部署模式**：支持自托管和云实例的差异处理
   - **拷贝和序列化**：核心类支持完整的Python拷贝和序列化操作
