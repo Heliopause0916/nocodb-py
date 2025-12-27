@@ -14,7 +14,7 @@ NocoDB Table for Python
 import time
 import threading
 import copy
-from typing import Dict, List, Any, Optional, Union, Callable
+from typing import Dict, List, Any, Optional, Union, Callable, Tuple
 from typing import TYPE_CHECKING
 import requests
 from .utils import parse_utc_datetime, count_of_nocodb_data
@@ -566,9 +566,373 @@ class NocoDBTable:
         
         return filtered_record
 
+    def _process_record_for_creation(self, record: Union[Dict, NocoDBRecord]) -> Dict:
+        """
+        Process a single record for creation, including validation and filtering.
+        
+        Args:
+            record (Union[Dict, NocoDBRecord]): Record to process
+            
+        Returns:
+            Dict: Processed record data ready for API
+        """
+        # Get column information for validation and filtering
+        columns_info = self.get_columns_full_info()
+        column_titles = [col.get('title', '') for col in columns_info]
+        
+        if isinstance(record, NocoDBRecord):
+            # Use record's data
+            record_data = record.to_api_format()
+            # Remove ID if present (should not be present for new records)
+            if "Id" in record_data:
+                del record_data["Id"]
+        else:
+            record_data = record
+            
+        # Validate column names
+        self._validate_column_names(record_data, column_titles)
+        
+        # Filter out read-only columns
+        return self._filter_read_only_columns(record_data, columns_info)
+    
+    def _process_record_for_update(self, record: Union[Dict, NocoDBRecord]) -> Tuple[Dict, int]:
+        """
+        Process a single record for update, including validation and filtering.
+        
+        Args:
+            record (Union[Dict, NocoDBRecord]): Record to process
+            
+        Returns:
+            Tuple[Dict, int]: Processed record data and record ID
+        """
+        # Get column information for validation and filtering
+        columns_info = self.get_columns_full_info()
+        column_titles = [col.get('title', '') for col in columns_info]
+        
+        if isinstance(record, NocoDBRecord):
+            # Use record's data and ensure it has an ID
+            record_data = record.to_api_format()
+            if "Id" not in record_data:
+                raise ValueError("NocoDBRecord must be attached (have an ID) to be updated")
+        else:
+            record_data = record
+            
+        # Check if record has "Id" field
+        if "Id" not in record_data:
+            raise ValueError("Record must contain an 'Id' field to identify which record to update")
+        
+        # Get record ID and ensure it's an integer
+        record_id = record_data.get("Id")
+        if record_id is None:
+            raise ValueError("Record ID is required for update")
+        try:
+            record_id_int = int(record_id)
+        except (TypeError, ValueError):
+            raise ValueError(f"Record ID must be an integer, got {type(record_id)}")
+        
+        # Validate column names (excluding "Id" which is required for update)
+        record_without_id = {k: v for k, v in record_data.items() if k != "Id"}
+        self._validate_column_names(record_without_id, column_titles)
+        
+        # Filter out read-only columns (but keep "Id" for identification)
+        filtered_record = self._filter_read_only_columns(record_data, columns_info)
+        
+        # Ensure "Id" is preserved even if it's a read-only column
+        if "Id" in record_data and "Id" not in filtered_record:
+            filtered_record["Id"] = record_data["Id"]
+        
+        return filtered_record, record_id_int
+    
+    def _process_record_for_deletion(self, record: Union[Dict, NocoDBRecord]) -> Dict:
+        """
+        Process a single record for deletion, extracting the record ID.
+        
+        Args:
+            record (Union[Dict, NocoDBRecord]): Record to process
+            
+        Returns:
+            Dict: Record data with ID for deletion
+        """
+        if isinstance(record, NocoDBRecord):
+            # Use record's ID
+            if not record.is_attached:
+                raise ValueError("NocoDBRecord must be attached (have an ID) to be deleted")
+            return {"Id": record.record_id}
+        else:
+            # Check if record has "Id" field
+            if "Id" not in record:
+                raise ValueError("Record must contain an 'Id' field to identify which record to delete")
+            return {"Id": record["Id"]}
+    
+    def create_record(self, record: Union[Dict, NocoDBRecord]) -> NocoDBRecord:
+        """
+        Create a single record in the table.
+        
+        Args:
+            record (Union[Dict, NocoDBRecord]): Record to create. Can be dictionary or NocoDBRecord object.
+            
+        Returns:
+            NocoDBRecord: Created record as NocoDBRecord object
+            
+        Raises:
+            ValueError: If column names in record are invalid
+            requests.exceptions.RequestException: If the API request fails
+            
+        Example:
+            >>> # Create record from dictionary
+            >>> result = table.create_record({"Name": "John", "Age": 30})
+            >>> print(result)
+            NocoDBRecord(record_id=123, table_id='table_id', status=attached, data={'Name': 'John', 'Age': 30})
+            
+            >>> # Create record from NocoDBRecord
+            >>> record = NocoDBRecord({"Name": "John", "Age": 30})
+            >>> result = table.create_record(record)
+            >>> print(result)
+            NocoDBRecord(record_id=123, table_id='table_id', status=attached, data={'Name': 'John', 'Age': 30})
+        """
+        filtered_record = self._process_record_for_creation(record)
+        
+        # Send POST request
+        path = f"{self.get_data_v2_prefix()}/records"
+        # pylint: disable=protected-access
+        # Reason: NocoDBClient._post is intentionally accessible to NocoDB-related classes
+        response = self._project.client._post(path, data=filtered_record)
+        
+        # Create and return NocoDBRecord object
+        record_id = response.get("Id")
+        if record_id is None:
+            raise ValueError("API response does not contain record ID")
+            
+        if isinstance(record, NocoDBRecord):
+            # Attach the existing record to the table
+            record._attach(self, record_id)
+            return record
+        else:
+            # Create new record object
+            return NocoDBRecord.from_api_format(response, table=self)
+    
+    def _create_records_batch(self, records: List[Union[Dict, NocoDBRecord]]) -> List[NocoDBRecord]:
+        """
+        Create multiple records in the table (internal batch method).
+        
+        Args:
+            records (List[Union[Dict, NocoDBRecord]]): List of records to create. Can be dictionaries or NocoDBRecord objects.
+            
+        Returns:
+            List[NocoDBRecord]: Created records as NocoDBRecord objects
+            
+        Raises:
+            ValueError: If column names in records are invalid
+            requests.exceptions.RequestException: If the API request fails
+        """
+        # Process each record
+        filtered_records = []
+        original_records = []  # Keep track of original NocoDBRecord objects
+        for record in records:
+            if isinstance(record, NocoDBRecord):
+                original_records.append(record)
+            else:
+                original_records.append(None)
+            filtered_records.append(self._process_record_for_creation(record))
+        
+        # Send POST request with batch data
+        path = f"{self.get_data_v2_prefix()}/records"
+        # pylint: disable=protected-access
+        # Reason: NocoDBClient._post is intentionally accessible to NocoDB-related classes
+        response = self._project.client._post(path, data=filtered_records)
+        
+        # Create and return NocoDBRecord objects
+        result_records = []
+        for i, record_response in enumerate(response):
+            record_id = record_response.get("Id")
+            if record_id is None:
+                raise ValueError("API response does not contain record ID")
+                
+            if original_records[i] is not None:
+                # Attach the existing record to the table
+                original_records[i].attach(self, record_id)
+                result_records.append(original_records[i])
+            else:
+                # Create new record object
+                result_records.append(NocoDBRecord.from_api_format(record_response, table=self))
+        
+        return result_records
+    
+    def update_record(self, record: Union[Dict, NocoDBRecord]) -> NocoDBRecord:
+        """
+        Update a single record in the table.
+        
+        Args:
+            record (Union[Dict, NocoDBRecord]): Record to update. Can be dictionary or NocoDBRecord object.
+                The record must contain an "Id" field to identify which record to update.
+            
+        Returns:
+            NocoDBRecord: Updated record as NocoDBRecord object
+            
+        Raises:
+            ValueError: If column names in record are invalid or if "Id" field is missing
+            requests.exceptions.RequestException: If the API request fails
+            
+        Example:
+            >>> # Update record from dictionary
+            >>> result = table.update_record({"Id": 123, "Name": "John Updated", "Age": 31})
+            >>> print(result)
+            NocoDBRecord(record_id=123, table_id='table_id', status=attached, data={'Name': 'John Updated', 'Age': 31})
+            
+            >>> # Update record from NocoDBRecord
+            >>> record = table.get_record(123)
+            >>> record["Name"] = "John Updated"
+            >>> result = table.update_record(record)
+            >>> print(result)
+            NocoDBRecord(record_id=123, table_id='table_id', status=attached, data={'Name': 'John Updated', 'Age': 31})
+        """
+        filtered_record, record_id = self._process_record_for_update(record)
+        
+        # Send PATCH request
+        path = f"{self.get_data_v2_prefix()}/records"
+        # pylint: disable=protected-access
+        # Reason: NocoDBClient._patch is intentionally accessible to NocoDB-related classes
+        response = self._project.client._patch(path, data=filtered_record)
+        
+        # Return the updated NocoDBRecord object
+        if isinstance(record, NocoDBRecord):
+            # Update the existing record's data
+            record._data = {k: v for k, v in filtered_record.items() if k != "Id"}
+            return record
+        else:
+            # Create new record object with updated data
+            return NocoDBRecord.from_api_format(response, table=self)
+    
+    def _update_records_batch(self, records: List[Union[Dict, NocoDBRecord]]) -> List[NocoDBRecord]:
+        """
+        Update multiple records in the table (internal batch method).
+        
+        Args:
+            records (List[Union[Dict, NocoDBRecord]]): List of records to update. Can be dictionaries or NocoDBRecord objects.
+                Each record must contain an "Id" field to identify which record to update.
+            
+        Returns:
+            List[NocoDBRecord]: Updated records as NocoDBRecord objects
+            
+        Raises:
+            ValueError: If column names in records are invalid or if "Id" field is missing
+            requests.exceptions.RequestException: If the API request fails
+        """
+        # Process each record
+        filtered_records = []
+        original_records = []  # Keep track of original NocoDBRecord objects
+        
+        for record in records:
+            if isinstance(record, NocoDBRecord):
+                original_records.append(record)
+            else:
+                original_records.append(None)
+                
+            filtered_record, _ = self._process_record_for_update(record)
+            filtered_records.append(filtered_record)
+        
+        # Send PATCH request with batch data
+        path = f"{self.get_data_v2_prefix()}/records"
+        # pylint: disable=protected-access
+        # Reason: NocoDBClient._patch is intentionally accessible to NocoDB-related classes
+        response = self._project.client._patch(path, data=filtered_records)
+        
+        # Return the updated NocoDBRecord objects
+        result_records = []
+        for i, record_response in enumerate(response):
+            if original_records[i] is not None:
+                # Update the existing record's data
+                original_records[i]._data = {k: v for k, v in filtered_records[i].items() if k != "Id"}
+                result_records.append(original_records[i])
+            else:
+                # Create new record object with updated data
+                result_records.append(NocoDBRecord.from_api_format(record_response, table=self))
+        
+        return result_records
+    
+    def delete_record(self, record: Union[Dict, NocoDBRecord]) -> Dict:
+        """
+        Delete a single record from the table.
+        
+        Args:
+            record (Union[Dict, NocoDBRecord]): Record to delete. Can be dictionary or NocoDBRecord object.
+                The record must contain an "Id" field to identify which record to delete.
+            
+        Returns:
+            Dict: Deletion result (API response)
+            
+        Raises:
+            ValueError: If "Id" field is missing in record
+            requests.exceptions.RequestException: If the API request fails
+            
+        Example:
+            >>> # Delete record from dictionary
+            >>> result = table.delete_record({"Id": 123})
+            >>> print(result)
+            {"Id": 123}
+            
+            >>> # Delete record from NocoDBRecord
+            >>> record = table.get_record(123)
+            >>> result = table.delete_record(record)
+            >>> print(result)
+            {"Id": 123}
+        """
+        validated_record = self._process_record_for_deletion(record)
+        
+        # Send DELETE request
+        path = f"{self.get_data_v2_prefix()}/records"
+        # pylint: disable=protected-access
+        # Reason: NocoDBClient._delete is intentionally accessible to NocoDB-related classes
+        response = self._project.client._delete(path, data=validated_record)
+        
+        # Mark the record as deleted
+        if isinstance(record, NocoDBRecord):
+            record._mark_deleted()
+        
+        # Return the deletion result
+        return response
+    
+    def _delete_records_batch(self, records: List[Union[Dict, NocoDBRecord]]) -> List[Dict]:
+        """
+        Delete multiple records from the table (internal batch method).
+        
+        Args:
+            records (List[Union[Dict, NocoDBRecord]]): List of records to delete. Can be dictionaries or NocoDBRecord objects.
+                Each record must contain an "Id" field to identify which record to delete.
+            
+        Returns:
+            List[Dict]: Deletion results (API responses)
+            
+        Raises:
+            ValueError: If "Id" field is missing in records
+            requests.exceptions.RequestException: If the API request fails
+        """
+        # Process each record
+        validated_records = []
+        for record in records:
+            validated_record = self._process_record_for_deletion(record)
+            validated_records.append(validated_record)
+        
+        # Send DELETE request with batch data
+        path = f"{self.get_data_v2_prefix()}/records"
+        # pylint: disable=protected-access
+        # Reason: NocoDBClient._delete is intentionally accessible to NocoDB-related classes
+        response = self._project.client._delete(path, data=validated_records)
+        
+        # Mark all NocoDBRecord objects as deleted
+        for record in records:
+            if isinstance(record, NocoDBRecord):
+                record._mark_deleted()
+        
+        # Return the list of deletion results
+        return response
+    
+    # Backward compatibility methods - these wrap the new separated methods
     def create_records(self, records: Union[Dict, NocoDBRecord, List[Dict], List[NocoDBRecord]]) -> Union[NocoDBRecord, List[NocoDBRecord]]:
         """
-        Create one or more records in the table.
+        Create one or more records in the table (backward compatibility wrapper).
+        
+        This method wraps the new create_record and create_records methods for backward compatibility.
         
         Args:
             records (Union[Dict, NocoDBRecord, List[Dict], List[NocoDBRecord]]):
@@ -601,91 +965,17 @@ class NocoDBTable:
             >>> print(result)
             [NocoDBRecord(record_id=123, ...), NocoDBRecord(record_id=124, ...)]
         """
-        # Get column information for validation and filtering
-        columns_info = self.get_columns_full_info()
-        column_titles = [col.get('title', '') for col in columns_info]
-        
-        def process_record(record):
-            """Convert record to API format and validate"""
-            if isinstance(record, NocoDBRecord):
-                # Use record's data
-                record_data = record.to_api_format()
-                # Remove ID if present (should not be present for new records)
-                if "Id" in record_data:
-                    del record_data["Id"]
-            else:
-                record_data = record
-                
-            # Validate column names
-            self._validate_column_names(record_data, column_titles)
-            
-            # Filter out read-only columns
-            return self._filter_read_only_columns(record_data, columns_info)
-        
-        # Handle single record case
-        if isinstance(records, (dict, NocoDBRecord)):
-            filtered_record = process_record(records)
-            
-            # Send POST request
-            path = f"{self.get_data_v2_prefix()}/records"
-            # pylint: disable=protected-access
-            # Reason: NocoDBClient._post is intentionally accessible to NocoDB-related classes
-            response = self._project.client._post(path, data=filtered_record)
-            
-            # Create and return NocoDBRecord object
-            record_id = response.get("Id")
-            if record_id is None:
-                raise ValueError("API response does not contain record ID")
-                
-            if isinstance(records, NocoDBRecord):
-                # Attach the existing record to the table
-                records._attach(self, record_id)
-                return records
-            else:
-                # Create new record object
-                return NocoDBRecord.from_api_format(response, table=self)
-            
-        # Handle batch records case
-        elif isinstance(records, list):
-            # Process each record
-            filtered_records = []
-            original_records = []  # Keep track of original NocoDBRecord objects
-            for record in records:
-                if isinstance(record, NocoDBRecord):
-                    original_records.append(record)
-                else:
-                    original_records.append(None)
-                filtered_records.append(process_record(record))
-            
-            # Send POST request with batch data
-            path = f"{self.get_data_v2_prefix()}/records"
-            # pylint: disable=protected-access
-            # Reason: NocoDBClient._post is intentionally accessible to NocoDB-related classes
-            response = self._project.client._post(path, data=filtered_records)
-            
-            # Create and return NocoDBRecord objects
-            result_records = []
-            for i, record_response in enumerate(response):
-                record_id = record_response.get("Id")
-                if record_id is None:
-                    raise ValueError("API response does not contain record ID")
-                    
-                if original_records[i] is not None:
-                    # Attach the existing record to the table
-                    original_records[i].attach(self, record_id)
-                    result_records.append(original_records[i])
-                else:
-                    # Create new record object
-                    result_records.append(NocoDBRecord.from_api_format(record_response, table=self))
-            
-            return result_records
-            
+        if isinstance(records, list):
+            # Type assertion: List[Dict] | List[NocoDBRecord] is compatible with List[Dict | NocoDBRecord]
+            return self._create_records_batch(records)  # type: ignore
         else:
-            raise ValueError("Records must be a dictionary, NocoDBRecord, or list of dictionaries/NocoDBRecords")
-
+            return self.create_record(records)
+    
     def update_records(self, records: Union[Dict, NocoDBRecord, List[Dict], List[NocoDBRecord]]) -> Union[NocoDBRecord, List[NocoDBRecord]]:
         """
-        Update one or more records in the table.
+        Update one or more records in the table (backward compatibility wrapper).
+        
+        This method wraps the new update_record and _update_records_batch methods for backward compatibility.
         
         Args:
             records (Union[Dict, NocoDBRecord, List[Dict], List[NocoDBRecord]]):
@@ -720,98 +1010,17 @@ class NocoDBTable:
             >>> print(result)
             [NocoDBRecord(record_id=123, ...), NocoDBRecord(record_id=124, ...)]
         """
-        # Get column information for validation and filtering
-        columns_info = self.get_columns_full_info()
-        column_titles = [col.get('title', '') for col in columns_info]
-        
-        def process_record(record):
-            """Convert record to API format and validate"""
-            if isinstance(record, NocoDBRecord):
-                # Use record's data and ensure it has an ID
-                record_data = record.to_api_format()
-                if "Id" not in record_data:
-                    raise ValueError("NocoDBRecord must be attached (have an ID) to be updated")
-            else:
-                record_data = record
-                
-            # Check if record has "Id" field
-            if "Id" not in record_data:
-                raise ValueError("Record must contain an 'Id' field to identify which record to update")
-            
-            # Validate column names (excluding "Id" which is required for update)
-            record_without_id = {k: v for k, v in record_data.items() if k != "Id"}
-            self._validate_column_names(record_without_id, column_titles)
-            
-            # Filter out read-only columns (but keep "Id" for identification)
-            filtered_record = self._filter_read_only_columns(record_data, columns_info)
-            
-            # Ensure "Id" is preserved even if it's a read-only column
-            if "Id" in record_data and "Id" not in filtered_record:
-                filtered_record["Id"] = record_data["Id"]
-            
-            return filtered_record, record_data.get("Id")
-        
-        # Handle single record case
-        if isinstance(records, (dict, NocoDBRecord)):
-            filtered_record, record_id = process_record(records)
-            
-            # Send PATCH request
-            path = f"{self.get_data_v2_prefix()}/records"
-            # pylint: disable=protected-access
-            # Reason: NocoDBClient._patch is intentionally accessible to NocoDB-related classes
-            response = self._project.client._patch(path, data=filtered_record)
-            
-            # Return the updated NocoDBRecord object
-            if isinstance(records, NocoDBRecord):
-                # Update the existing record's data
-                records._data = {k: v for k, v in filtered_record.items() if k != "Id"}
-                return records
-            else:
-                # Create new record object with updated data
-                return NocoDBRecord.from_api_format(response, table=self)
-            
-        # Handle batch records case
-        elif isinstance(records, list):
-            # Process each record
-            filtered_records = []
-            original_records = []  # Keep track of original NocoDBRecord objects
-            record_ids = []  # Keep track of record IDs
-            
-            for record in records:
-                if isinstance(record, NocoDBRecord):
-                    original_records.append(record)
-                else:
-                    original_records.append(None)
-                    
-                filtered_record, record_id = process_record(record)
-                filtered_records.append(filtered_record)
-                record_ids.append(record_id)
-            
-            # Send PATCH request with batch data
-            path = f"{self.get_data_v2_prefix()}/records"
-            # pylint: disable=protected-access
-            # Reason: NocoDBClient._patch is intentionally accessible to NocoDB-related classes
-            response = self._project.client._patch(path, data=filtered_records)
-            
-            # Return the updated NocoDBRecord objects
-            result_records = []
-            for i, record_response in enumerate(response):
-                if original_records[i] is not None:
-                    # Update the existing record's data
-                    original_records[i]._data = {k: v for k, v in filtered_records[i].items() if k != "Id"}
-                    result_records.append(original_records[i])
-                else:
-                    # Create new record object with updated data
-                    result_records.append(NocoDBRecord.from_api_format(record_response, table=self))
-            
-            return result_records
-            
+        if isinstance(records, list):
+            # Type assertion: List[Dict] | List[NocoDBRecord] is compatible with List[Dict | NocoDBRecord]
+            return self._update_records_batch(records)  # type: ignore
         else:
-            raise ValueError("Records must be a dictionary, NocoDBRecord, or list of dictionaries/NocoDBRecords")
-
+            return self.update_record(records)
+    
     def delete_records(self, records: Union[Dict, NocoDBRecord, List[Dict], List[NocoDBRecord]]) -> Union[Dict, List[Dict]]:
         """
-        Delete one or more records from the table.
+        Delete one or more records from the table (backward compatibility wrapper).
+        
+        This method wraps the new delete_record and _delete_records_batch methods for backward compatibility.
         
         Args:
             records (Union[Dict, NocoDBRecord, List[Dict], List[NocoDBRecord]]):
@@ -845,57 +1054,9 @@ class NocoDBTable:
             >>> print(result)
             [{"Id": 123}, {"Id": 124}]
         """
-        def process_record(record):
-            """Extract record ID for deletion"""
-            if isinstance(record, NocoDBRecord):
-                # Use record's ID
-                if not record.is_attached:
-                    raise ValueError("NocoDBRecord must be attached (have an ID) to be deleted")
-                return {"Id": record.record_id}
-            else:
-                # Check if record has "Id" field
-                if "Id" not in record:
-                    raise ValueError("Record must contain an 'Id' field to identify which record to delete")
-                return {"Id": record["Id"]}
-        
-        # Handle single record case
-        if isinstance(records, (dict, NocoDBRecord)):
-            validated_record = process_record(records)
-            
-            # Send DELETE request
-            path = f"{self.get_data_v2_prefix()}/records"
-            # pylint: disable=protected-access
-            # Reason: NocoDBClient._delete is intentionally accessible to NocoDB-related classes
-            response = self._project.client._delete(path, data=validated_record)
-            
-            # Mark the record as deleted
-            if isinstance(records, NocoDBRecord):
-                records._mark_deleted()
-            
-            # Return the deletion result
-            return response
-            
-        # Handle batch records case
-        elif isinstance(records, list):
-            # Process each record
-            validated_records = []
-            for record in records:
-                validated_record = process_record(record)
-                validated_records.append(validated_record)
-            
-            # Send DELETE request with batch data
-            path = f"{self.get_data_v2_prefix()}/records"
-            # pylint: disable=protected-access
-            # Reason: NocoDBClient._delete is intentionally accessible to NocoDB-related classes
-            response = self._project.client._delete(path, data=validated_records)
-            
-            # Mark all NocoDBRecord objects as deleted
-            for record in records:
-                if isinstance(record, NocoDBRecord):
-                    record._mark_deleted()
-            
-            # Return the list of deletion results
-            return response
-            
+        if isinstance(records, list):
+            # Type assertion: List[Dict] | List[NocoDBRecord] is compatible with List[Dict | NocoDBRecord]
+            return self._delete_records_batch(records)  # type: ignore
         else:
-            raise ValueError("Records must be a dictionary, NocoDBRecord, or list of dictionaries/NocoDBRecords")
+            return self.delete_record(records)
+
