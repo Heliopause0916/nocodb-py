@@ -380,7 +380,7 @@ class NocoDBColumn:
         from .validator import validate_value, ValidationLevel
         
         if level is None:
-            level = ValidationLevel.FULL
+            level = ValidationLevel.STRUCTURAL
         
         column_type = self.get_column_type()
         return validate_value(value, column_type, self, level, normalize)

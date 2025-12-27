@@ -175,7 +175,7 @@ def validate_value(
     value: Any,
     column_type: NocoDBColumnType,
     column: Optional[NocoDBColumn] = None,
-    level: ValidationLevel = ValidationLevel.FULL,
+    level: ValidationLevel = ValidationLevel.STRUCTURAL,
     normalize: bool = False
 ) -> Union[bool, Any]:
     """
