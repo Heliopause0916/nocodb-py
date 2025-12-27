@@ -21,6 +21,7 @@ from .utils import parse_utc_datetime, count_of_nocodb_data
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .table import NocoDBTable
+    from .validator import ValidationLevel
 
 class NocoDBColumnType(Enum):
     """
@@ -363,6 +364,26 @@ class NocoDBColumn:
         with self._cache_lock:
             self._column_info_cache = None
             self._column_info_timestamp = 0
+
+    def verify_data(self, value: Any, level: Optional['ValidationLevel'] = None, normalize: bool = False) -> Union[bool, Any]:
+        """
+        Verify if the given value is valid for this column.
+        
+        Args:
+            value: The value to verify
+            level: Validation level (STRUCTURAL or FULL), defaults to FULL
+            normalize: If True, returns normalized value instead of validation result
+            
+        Returns:
+            Union[bool, Any]: Validation result or normalized value
+        """
+        from .validator import validate_value, ValidationLevel
+        
+        if level is None:
+            level = ValidationLevel.FULL
+        
+        column_type = self.get_column_type()
+        return validate_value(value, column_type, self, level, normalize)
 
 
 class NocoDBSchema:
