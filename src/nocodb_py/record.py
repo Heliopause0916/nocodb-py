@@ -24,13 +24,15 @@ class NocoDBRecord:
         _table (Optional['NocoDBTable']): Table object, None for offline records
         _schema (Optional[NocoDBSchema]): Table schema for field validation
         _original_data_hash (int): Hash of original data for modification detection
+        _is_deleted (bool): Whether the record has been deleted from the database
     """
     
     def __init__(self,
                  data: Dict[str, Any],
                  record_id: Optional[int] = None,
                  table: Optional['NocoDBTable'] = None,
-                 schema: Optional['NocoDBSchema'] = None):
+                 schema: Optional['NocoDBSchema'] = None,
+                 is_deleted: bool = False):
         """
         Initialize NocoDB record
         
@@ -39,12 +41,14 @@ class NocoDBRecord:
             record_id: Record ID, None for offline records
             table: Table object, None for offline records
             schema: Table schema for field validation and classification
+            is_deleted: Whether the record has been deleted from the database
         """
         # Deep copy data to prevent external modifications
         self._data = copy.deepcopy(data) if data else {}
         self._record_id = record_id
         self._table = table
         self._schema = schema
+        self._is_deleted = is_deleted
         
         # Track original data state for modification detection
         self._original_data_hash = self._compute_data_hash()
@@ -88,15 +92,34 @@ class NocoDBRecord:
         """Whether the record data has been modified since creation"""
         return self._compute_data_hash() != self._original_data_hash
     
-    def attach(self, table: 'NocoDBTable', record_id: int) -> None:
-        """Attach offline record to a table"""
+    @property
+    def is_deleted(self) -> bool:
+        """Whether the record has been deleted from the database"""
+        return self._is_deleted
+    
+    def _attach(self, table: 'NocoDBTable', record_id: int) -> None:
+        """
+        Attach offline record to a table (protected method)
+        
+        This method should only be called by table's create_records or create_record methods.
+        Strongly discouraged to call this method directly from external code.
+        
+        Args:
+            table: Table object to attach to
+            record_id: Record ID assigned by NocoDB
+        """
         self._table = table
         self._record_id = record_id
+        self._is_deleted = False  # Reset deleted status when attaching
     
-    def detach(self) -> None:
-        """Detach record from table, making it offline"""
-        self._table = None
-        self._record_id = None
+    def _mark_deleted(self) -> None:
+        """
+        Mark record as deleted (protected method)
+        
+        This method should only be called by table's delete_records or delete_record methods.
+        Strongly discouraged to call this method directly from external code.
+        """
+        self._is_deleted = True
     
     def to_api_format(self) -> Dict[str, Any]:
         """
@@ -140,7 +163,8 @@ class NocoDBRecord:
             data=data,
             record_id=record_id,
             table=table,
-            schema=schema
+            schema=schema,
+            is_deleted=False
         )
     
     def __getitem__(self, key: str) -> Any:
@@ -158,8 +182,9 @@ class NocoDBRecord:
     def __str__(self) -> str:
         """String representation"""
         status = "attached" if self.is_attached else "detached"
+        deleted_status = ", deleted" if self.is_deleted else ""
         table_id = self.table_id if self._table else None
-        return f"NocoDBRecord(record_id={self._record_id}, table_id={table_id}, status={status}, data={self._data})"
+        return f"NocoDBRecord(record_id={self._record_id}, table_id={table_id}, status={status}{deleted_status}, data={self._data})"
     
     def __repr__(self) -> str:
         """Official string representation"""

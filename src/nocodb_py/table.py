@@ -639,7 +639,7 @@ class NocoDBTable:
                 
             if isinstance(records, NocoDBRecord):
                 # Attach the existing record to the table
-                records.attach(self, record_id)
+                records._attach(self, record_id)
                 return records
             else:
                 # Create new record object
@@ -868,9 +868,9 @@ class NocoDBTable:
             # Reason: NocoDBClient._delete is intentionally accessible to NocoDB-related classes
             response = self._project.client._delete(path, data=validated_record)
             
-            # If it's a NocoDBRecord, detach it after deletion
+            # Mark the record as deleted
             if isinstance(records, NocoDBRecord):
-                records.detach()
+                records._mark_deleted()
             
             # Return the deletion result
             return response
@@ -889,10 +889,10 @@ class NocoDBTable:
             # Reason: NocoDBClient._delete is intentionally accessible to NocoDB-related classes
             response = self._project.client._delete(path, data=validated_records)
             
-            # Detach any NocoDBRecord objects after deletion
+            # Mark all NocoDBRecord objects as deleted
             for record in records:
                 if isinstance(record, NocoDBRecord):
-                    record.detach()
+                    record._mark_deleted()
             
             # Return the list of deletion results
             return response
