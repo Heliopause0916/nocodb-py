@@ -159,7 +159,8 @@ class NocoDBProject:
         self._tables_timestamp = 0
         self._last_include_m2m = None
 
-    def get_project_id(self) -> str:
+    @property
+    def project_id(self) -> str:
         """
         Get the project ID
         
@@ -168,9 +169,19 @@ class NocoDBProject:
         """
         return self._project_id
     
+    def get_project_id(self) -> str:
+        """
+        Get the project ID (compatibility method)
+        
+        Returns:
+            str: The project ID
+        """
+        return self.project_id
+    
     get_id = get_project_id
 
-    def get_client(self) -> NocoDBClient:
+    @property
+    def client(self) -> NocoDBClient:
         """
         Get the client instance
         
@@ -178,6 +189,15 @@ class NocoDBProject:
             NocoDBClient: The client instance
         """
         return self._client
+    
+    def get_client(self) -> NocoDBClient:
+        """
+        Get the client instance (compatibility method)
+        
+        Returns:
+            NocoDBClient: The client instance
+        """
+        return self.client
 
 
     def get_full_info(self, force_refresh: bool = False) -> Dict:

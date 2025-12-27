@@ -21,7 +21,7 @@ class NocoDBRecord:
     Attributes:
         _data (Dict[str, Any]): All record fields including user data and system fields
         _record_id (Optional[int]): Record ID, None for offline records
-        _table_id (Optional[str]): Table ID, None for offline records
+        _table (Optional['NocoDBTable']): Table object, None for offline records
         _schema (Optional[NocoDBSchema]): Table schema for field validation
         _original_data_hash (int): Hash of original data for modification detection
     """
@@ -29,7 +29,7 @@ class NocoDBRecord:
     def __init__(self,
                  data: Dict[str, Any],
                  record_id: Optional[int] = None,
-                 table_id: Optional[str] = None,
+                 table: Optional['NocoDBTable'] = None,
                  schema: Optional['NocoDBSchema'] = None):
         """
         Initialize NocoDB record
@@ -37,13 +37,13 @@ class NocoDBRecord:
         Args:
             data: All record fields dictionary (user data + system fields)
             record_id: Record ID, None for offline records
-            table_id: Table ID, None for offline records
+            table: Table object, None for offline records
             schema: Table schema for field validation and classification
         """
         # Deep copy data to prevent external modifications
         self._data = copy.deepcopy(data) if data else {}
         self._record_id = record_id
-        self._table_id = table_id
+        self._table = table
         self._schema = schema
         
         # Track original data state for modification detection
@@ -59,9 +59,14 @@ class NocoDBRecord:
         return self._record_id
     
     @property
+    def table(self) -> Optional['NocoDBTable']:
+        """Table object, None for offline records"""
+        return self._table
+    
+    @property
     def table_id(self) -> Optional[str]:
-        """Table ID, None for offline records"""
-        return self._table_id
+        """Table ID, None for offline records (convenience property)"""
+        return self._table.table_id if self._table else None
     
     @property
     def schema(self) -> Optional['NocoDBSchema']:
@@ -71,7 +76,7 @@ class NocoDBRecord:
     @property
     def is_attached(self) -> bool:
         """Whether the record is attached to a NocoDB table"""
-        return self._record_id is not None and self._table_id is not None
+        return self._record_id is not None and self._table is not None
     
     @property
     def is_detached(self) -> bool:
@@ -83,14 +88,14 @@ class NocoDBRecord:
         """Whether the record data has been modified since creation"""
         return self._compute_data_hash() != self._original_data_hash
     
-    def attach(self, table_id: str, record_id: int) -> None:
+    def attach(self, table: 'NocoDBTable', record_id: int) -> None:
         """Attach offline record to a table"""
-        self._table_id = table_id
+        self._table = table
         self._record_id = record_id
     
     def detach(self) -> None:
         """Detach record from table, making it offline"""
-        self._table_id = None
+        self._table = None
         self._record_id = None
     
     def to_api_format(self) -> Dict[str, Any]:
@@ -109,13 +114,13 @@ class NocoDBRecord:
         return result
     
     @classmethod
-    def from_api_format(cls, api_data: Dict[str, Any], table_id: Optional[str] = None, schema: Optional['NocoDBSchema'] = None) -> 'NocoDBRecord':
+    def from_api_format(cls, api_data: Dict[str, Any], table: Optional['NocoDBTable'] = None, schema: Optional['NocoDBSchema'] = None) -> 'NocoDBRecord':
         """
         Create record object from NocoDB API response
         
         Args:
             api_data: Record data returned by NocoDB API
-            table_id: Table ID, optional
+            table: Table object, optional
             schema: Table schema, optional
             
         Returns:
@@ -134,7 +139,7 @@ class NocoDBRecord:
         return cls(
             data=data,
             record_id=record_id,
-            table_id=table_id,
+            table=table,
             schema=schema
         )
     
@@ -153,7 +158,8 @@ class NocoDBRecord:
     def __str__(self) -> str:
         """String representation"""
         status = "attached" if self.is_attached else "detached"
-        return f"NocoDBRecord(record_id={self._record_id}, table_id={self._table_id}, status={status}, data={self._data})"
+        table_id = self.table_id if self._table else None
+        return f"NocoDBRecord(record_id={self._record_id}, table_id={table_id}, status={status}, data={self._data})"
     
     def __repr__(self) -> str:
         """Official string representation"""
@@ -166,21 +172,21 @@ class NocoDBRecordSet:
     
     Attributes:
         records (List[NocoDBRecord]): List of records
-        table_id (Optional[str]): Table ID
+        table (Optional['NocoDBTable']): Table object
     """
     
-    def __init__(self, 
+    def __init__(self,
                  records: List[NocoDBRecord],
-                 table_id: Optional[str] = None):
+                 table: Optional['NocoDBTable'] = None):
         """
         Initialize record set
         
         Args:
             records: List of records
-            table_id: Table ID, optional
+            table: Table object, optional
         """
         self.records = records
-        self.table_id = table_id
+        self.table = table
     
     def __len__(self) -> int:
         """Number of records"""
@@ -204,7 +210,8 @@ class NocoDBRecordSet:
     
     def __str__(self) -> str:
         """String representation"""
-        return f"NocoDBRecordSet(count={len(self.records)}, table_id={self.table_id})"
+        table_id = self.table.table_id if self.table else None
+        return f"NocoDBRecordSet(count={len(self.records)}, table_id={table_id})"
     
     def __repr__(self) -> str:
         """Official string representation"""

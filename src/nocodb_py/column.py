@@ -254,7 +254,8 @@ class NocoDBColumn:
         """
         return hash((self._table, self._column_id))
 
-    def get_column_id(self) -> str:
+    @property
+    def column_id(self) -> str:
         """
         Get the column ID
         
@@ -263,9 +264,19 @@ class NocoDBColumn:
         """
         return self._column_id
     
+    def get_column_id(self) -> str:
+        """
+        Get the column ID (compatibility method)
+        
+        Returns:
+            str: The column ID
+        """
+        return self.column_id
+    
     get_id = get_column_id
 
-    def get_table(self) -> 'NocoDBTable':
+    @property
+    def table(self) -> 'NocoDBTable':
         """
         Get the table instance
         
@@ -273,6 +284,15 @@ class NocoDBColumn:
             'NocoDBTable': The table instance
         """
         return self._table
+    
+    def get_table(self) -> 'NocoDBTable':
+        """
+        Get the table instance (compatibility method)
+        
+        Returns:
+            'NocoDBTable': The table instance
+        """
+        return self.table
 
     def get_meta_v2_prefix(self) -> str:
         """
@@ -305,7 +325,7 @@ class NocoDBColumn:
 
             # pylint: disable=protected-access
             # Reason: NocoDBClient._get is intentionally accessible to NocoDB-related classes
-            self._column_info_cache = self._table.get_project().get_client()._get(
+            self._column_info_cache = self._table.get_project().client._get(
                 f"{self.get_meta_v2_prefix()}"
             )
             self._column_info_timestamp = current_time
@@ -447,7 +467,8 @@ class NocoDBSchema:
             return False
         return col_info.get('system', 0) == 0 and col_info.get('readonly', 0) == 0
     
-    def get_writable_fields(self) -> List[str]:
+    @property
+    def writable_fields(self) -> List[str]:
         """
         Get all writable field titles
         
@@ -458,7 +479,8 @@ class NocoDBSchema:
             self.load_schema()
         return [col.get('title') for col in self._writable_columns] if self._writable_columns else []
     
-    def get_system_fields(self) -> List[str]:
+    @property
+    def system_fields(self) -> List[str]:
         """
         Get all system field titles
         
@@ -469,7 +491,8 @@ class NocoDBSchema:
             self.load_schema()
         return [col.get('title') for col in self._system_columns] if self._system_columns else []
     
-    def get_readonly_fields(self) -> List[str]:
+    @property
+    def readonly_fields(self) -> List[str]:
         """
         Get all read-only field titles
         
@@ -480,7 +503,8 @@ class NocoDBSchema:
             self.load_schema()
         return [col.get('title') for col in self._readonly_columns] if self._readonly_columns else []
     
-    def get_all_fields(self) -> List[str]:
+    @property
+    def all_fields(self) -> List[str]:
         """
         Get all field titles
         
