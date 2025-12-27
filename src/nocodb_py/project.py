@@ -354,7 +354,7 @@ class NocoDBProject:
             table_id (str): The ID of the table to get
             
         Returns:
-            NocoDBTable: The table object
+            'NocoDBTable': The table object
         """
         # pylint: disable=import-outside-toplevel
         # Reason: Avoid circular imports

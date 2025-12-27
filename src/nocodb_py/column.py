@@ -18,7 +18,9 @@ from typing import Dict, List, Any, Optional, Union
 from enum import Enum
 import requests
 from .utils import parse_utc_datetime, count_of_nocodb_data
-from .table import NocoDBTable
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from .table import NocoDBTable
 
 class NocoDBColumnType(Enum):
     """
@@ -187,16 +189,16 @@ class NocoDBColumn:
     A class representing a NocoDB column with column-specific operations
     
     Attributes:
-        _table (NocoDBTable): The NocoDB table instance
+        _table ('NocoDBTable'): The NocoDB table instance
         _column_id (str): The unique column identifier
     """
 
-    def __init__(self, table: NocoDBTable, column_id: str, timeout: int = 30, cache_ttl: Optional[int] = 300):
+    def __init__(self, table: 'NocoDBTable', column_id: str, timeout: int = 30, cache_ttl: Optional[int] = 300):
         """
         Initialize the NocoDBColumn with table and column ID
         
         Args:
-            table (NocoDBTable): The NocoDB table instance
+            table ('NocoDBTable'): The NocoDB table instance
             column_id (str): The unique column identifier
             timeout (int): Request timeout in seconds
             cache_ttl (Optional[int]): Cache time-to-live in seconds
@@ -263,12 +265,12 @@ class NocoDBColumn:
     
     get_id = get_column_id
 
-    def get_table(self) -> NocoDBTable:
+    def get_table(self) -> 'NocoDBTable':
         """
         Get the table instance
         
         Returns:
-            NocoDBTable: The table instance
+            'NocoDBTable': The table instance
         """
         return self._table
 
@@ -351,7 +353,7 @@ class NocoDBSchema:
     column metadata and validation rules for record operations.
     
     Attributes:
-        table (NocoDBTable): The NocoDB table instance
+        table ('NocoDBTable'): The NocoDB table instance
         _columns_info (List[Dict]): List of column information
         _columns_by_title (Dict[str, Dict]): Column info indexed by title
         _columns_by_id (Dict[str, Dict]): Column info indexed by ID
@@ -360,12 +362,12 @@ class NocoDBSchema:
         _system_columns (List[Dict]): List of system columns
     """
     
-    def __init__(self, table: NocoDBTable):
+    def __init__(self, table: 'NocoDBTable'):
         """
         Initialize the NocoDBSchema with a table instance
         
         Args:
-            table (NocoDBTable): The NocoDB table instance
+            table ('NocoDBTable'): The NocoDB table instance
         """
         self.table = table
         self._columns_info = None
