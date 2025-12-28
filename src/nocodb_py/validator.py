@@ -6,10 +6,26 @@ It supports multiple validation levels and uses a decorator-based registration s
 for maximum pluggability.
 """
 
+from dataclasses import dataclass
 from enum import Enum, auto
 from functools import wraps
 from typing import Any, Dict, Type, Optional, Union
 from .column import NocoDBColumnType, NocoDBColumn
+
+
+@dataclass
+class ValidationResult:
+    """
+    Validation result container with detailed information.
+    
+    Attributes:
+        is_valid: Whether the validation passed
+        error_message: Detailed error message if validation failed
+        converted_value: The normalized/converted value
+    """
+    is_valid: bool
+    error_message: str = ""
+    converted_value: Any = None
 
 
 class ValidationLevel(Enum):
@@ -32,36 +48,37 @@ class Validator:
     Subclasses should implement validation logic for specific column types.
     """
     
-    def validate_structural(self, value: Any) -> bool:
+    def validate(self, value: Any, column: NocoDBColumn, level: ValidationLevel) -> ValidationResult:
         """
-        Perform structural validation of the value.
-        
-        This includes basic type checking, format validation, and other
-        structural constraints that don't require external context.
-        
-        Args:
-            value: The value to validate
-            
-        Returns:
-            bool: True if the value passes structural validation
-        """
-        return True
-    
-    def validate_contextual(self, value: Any, column: NocoDBColumn) -> bool:
-        """
-        Perform contextual validation of the value.
-        
-        This includes validation that requires external context, such as
-        network requests to verify linked record existence.
+        Validate a value for the column type.
         
         Args:
             value: The value to validate
             column: The NocoDBColumn instance for contextual information
+            level: The validation level to use
             
         Returns:
-            bool: True if the value passes contextual validation
+            ValidationResult: Detailed validation result
         """
-        return True
+        # Default implementation: always return valid result
+        return ValidationResult(
+            is_valid=True,
+            error_message="",
+            converted_value=value
+        )
+    
+    def convert(self, value: Any, column: NocoDBColumn) -> Any:
+        """
+        Convert the value to the expected format for the column type.
+        
+        Args:
+            value: The value to convert
+            column: The NocoDBColumn instance for contextual information
+            
+        Returns:
+            Any: The converted value
+        """
+        return value
     
     def normalize(self, value: Any, column: Optional[NocoDBColumn] = None) -> Any:
         """
@@ -105,35 +122,54 @@ class SingleLineTextValidator(Validator):
     Validates that the value is a string and optionally checks length constraints.
     """
     
-    def validate_structural(self, value: Any) -> bool:
+    def validate(self, value: Any, column: NocoDBColumn, level: ValidationLevel) -> ValidationResult:
         """
-        Validate that the value is a string.
-        
-        Args:
-            value: The value to validate
-            
-        Returns:
-            bool: True if the value is a string
-        """
-        return isinstance(value, str)
-    
-    def validate_contextual(self, value: Any, column: NocoDBColumn) -> bool:
-        """
-        Perform contextual validation for SingleLineText.
-        
-        For SingleLineText, this could include checking against column constraints
-        like maximum length, but currently returns True as basic validation is sufficient.
+        Validate a value for SingleLineText column type.
         
         Args:
             value: The value to validate
             column: The NocoDBColumn instance for contextual information
+            level: The validation level to use
             
         Returns:
-            bool: True if the value passes contextual validation
+            ValidationResult: Detailed validation result
         """
-        # In a real implementation, this could check column constraints
-        # For now, return True as structural validation is sufficient
-        return True
+        # Structural validation: check if value is a string
+        if not isinstance(value, str):
+            return ValidationResult(
+                is_valid=False,
+                error_message=f"Expected string type, got {type(value).__name__}",
+                converted_value=None
+            )
+        
+        # For FULL validation, could add additional checks (e.g., length constraints)
+        if level == ValidationLevel.FULL:
+            # In a real implementation, this could check column constraints
+            # For now, just return valid result
+            pass
+        
+        # Convert and return valid result
+        converted_value = self.convert(value, column)
+        return ValidationResult(
+            is_valid=True,
+            error_message="",
+            converted_value=converted_value
+        )
+    
+    def convert(self, value: Any, column: NocoDBColumn) -> Any:
+        """
+        Convert the value to a string.
+        
+        Args:
+            value: The value to convert
+            column: The NocoDBColumn instance for contextual information
+            
+        Returns:
+            str: The converted string value, or None if value is None
+        """
+        if value is None:
+            return None
+        return str(value)
     
     def normalize(self, value: Any, column: Optional[NocoDBColumn] = None) -> Any:
         """
@@ -174,47 +210,44 @@ def get_validator(column_type: NocoDBColumnType) -> Validator:
 def validate_value(
     value: Any,
     column_type: NocoDBColumnType,
-    column: Optional[NocoDBColumn] = None,
-    level: ValidationLevel = ValidationLevel.STRUCTURAL,
-    normalize: bool = False
-) -> Union[bool, Any]:
+    column: Optional[Any] = None,
+    level: ValidationLevel = ValidationLevel.STRUCTURAL
+) -> ValidationResult:
     """
     Validate a value for a specific column type.
     
     Args:
         value: The value to validate
         column_type: The NocoDBColumnType to validate against
-        column: Optional NocoDBColumn instance for contextual validation
+        column: Optional column instance for contextual validation
         level: The validation level to use
-        normalize: Whether to return the normalized value instead of validation result
         
     Returns:
-        Union[bool, Any]: 
-            If normalize=False: boolean validation result
-            If normalize=True: normalized value (or None if validation fails)
+        ValidationResult: Detailed validation result with error message and converted value
     """
+    # Check if column is read-only (this should be checked first)
+    if column_type.is_read_only():
+        return ValidationResult(
+            is_valid=False,
+            error_message="Cannot modify read-only column",
+            converted_value=None
+        )
+    
     try:
         validator = get_validator(column_type)
     except ValueError:
-        # If no validator is registered, return True for validation or value for normalization
-        return True if not normalize else value
+        # If no validator is registered, return a valid result with the original value
+        return ValidationResult(
+            is_valid=True,
+            error_message="",
+            converted_value=value
+        )
     
-    # Check if column is read-only
-    if column_type.is_read_only():
-        return False if not normalize else None
+    # Use the unified validate method
+    if column is None:
+        # For validation without column context, create a minimal column info dict
+        column_info = {"title": "temp", "uidt": column_type.value}
+        # Create a simple object with column_info attribute
+        column = type('SimpleColumn', (), {'column_info': column_info})()
     
-    # Perform validation based on level
-    if level == ValidationLevel.STRUCTURAL:
-        is_valid = validator.validate_structural(value)
-    else:  # FULL validation
-        structural_valid = validator.validate_structural(value)
-        contextual_valid = validator.validate_contextual(value, column) if column else True
-        is_valid = structural_valid and contextual_valid
-    
-    if normalize:
-        if is_valid:
-            return validator.normalize(value, column if level == ValidationLevel.FULL else None)
-        else:
-            return None
-    else:
-        return is_valid
+    return validator.validate(value, column, level)

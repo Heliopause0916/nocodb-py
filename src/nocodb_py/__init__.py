@@ -8,7 +8,7 @@ from .project import NocoDBProject
 from .table import NocoDBTable, RecordNotFoundError
 from .column import NocoDBColumn, NocoDBColumnType, NocoDBSchema
 from .record import NocoDBRecord, NocoDBRecordSet
-from .validator import Validator, ValidationLevel, validate_value
+from .validator import Validator, ValidationLevel, ValidationResult, validate_value
 
 __all__ = [
     'NocoDBClient',
@@ -22,6 +22,7 @@ __all__ = [
     'NocoDBRecordSet',
     'Validator',
     'ValidationLevel',
+    'ValidationResult',
     'validate_value',
     'RecordNotFoundError'
     ]

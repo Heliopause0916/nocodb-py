@@ -365,17 +365,16 @@ class NocoDBColumn:
             self._column_info_cache = None
             self._column_info_timestamp = 0
 
-    def verify_data(self, value: Any, level: Optional['ValidationLevel'] = None, normalize: bool = False) -> Union[bool, Any]:
+    def verify_data(self, value: Any, level: Optional['ValidationLevel'] = None) -> Any:
         """
         Verify if the given value is valid for this column.
         
         Args:
             value: The value to verify
-            level: Validation level (STRUCTURAL or FULL), defaults to FULL
-            normalize: If True, returns normalized value instead of validation result
+            level: Validation level (STRUCTURAL or FULL), defaults to STRUCTURAL
             
         Returns:
-            Union[bool, Any]: Validation result or normalized value
+            ValidationResult: Detailed validation result with error message and converted value
         """
         from .validator import validate_value, ValidationLevel
         
@@ -383,7 +382,7 @@ class NocoDBColumn:
             level = ValidationLevel.STRUCTURAL
         
         column_type = self.get_column_type()
-        return validate_value(value, column_type, self, level, normalize)
+        return validate_value(value, column_type, self, level)
 
 
 class NocoDBSchema:
