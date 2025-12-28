@@ -575,6 +575,28 @@ class NocoDBTable:
         if invalid_columns:
             raise ValueError(f"Invalid column names: {invalid_columns}. Valid columns are: {column_titles}")
 
+    def _filter_columns(self, record: Dict, mode: str = "read_only") -> Dict:
+        """
+        Filter columns from the record based on the specified mode.
+        
+        Args:
+            record (Dict): The record to filter
+            mode (str): Filter mode - "read_only" (default) or "basic_only"
+            
+        Returns:
+            Dict: The filtered record with only allowed columns
+            
+        Raises:
+            ValueError: If an invalid mode is specified
+        """
+        if mode not in ["read_only", "basic_only"]:
+            raise ValueError(f"Invalid filter mode: {mode}. Must be 'read_only' or 'basic_only'")
+        
+        if mode == "read_only":
+            return self._filter_read_only_columns(record)
+        else:
+            return self._filter_basic_columns(record)
+    
     def _filter_read_only_columns(self, record: Dict) -> Dict:
         """
         Filter out read-only columns from the record.
@@ -602,6 +624,42 @@ class NocoDBTable:
                 filtered_record[key] = value
         
         return filtered_record
+    
+    def _filter_basic_columns(self, record: Dict) -> Dict:
+        """
+        Filter out non-basic columns from the record.
+        Only allows columns with basic column types (is_basic() returns True).
+        
+        Args:
+            record (Dict): The record to filter
+            
+        Returns:
+            Dict: The filtered record with only basic columns
+        """
+        # Get column information for filtering
+        columns_info = self.get_columns_full_info()
+        
+        # Get column titles that are basic (writable, simple structure)
+        basic_titles = []
+        for col in columns_info:
+            # Get column type and check if it's basic
+            col_type_str = col.get('uidt', '')
+            try:
+                from .column import NocoDBColumnType
+                col_type = NocoDBColumnType.from_string(col_type_str)
+                if col_type.is_basic():
+                    basic_titles.append(col.get('title', ''))
+            except ValueError:
+                # If column type is unknown, skip it (not basic)
+                continue
+        
+        # Filter out non-basic columns
+        filtered_record = {}
+        for key, value in record.items():
+            if key in basic_titles:
+                filtered_record[key] = value
+        
+        return filtered_record
 
     def _process_record_for_creation(self, record: Union[Dict, NocoDBRecord]) -> Dict:
         """
@@ -626,7 +684,7 @@ class NocoDBTable:
         self._validate_column_names(record_data)
         
         # Filter out read-only columns
-        return self._filter_read_only_columns(record_data)
+        return self._filter_columns(record_data, mode="read_only")
     
     def _process_record_for_update(self, record: Union[Dict, NocoDBRecord]) -> Tuple[Dict, int]:
         """
@@ -664,7 +722,7 @@ class NocoDBTable:
         self._validate_column_names(record_without_id)
         
         # Filter out read-only columns (but keep "Id" for identification)
-        filtered_record = self._filter_read_only_columns(record_data)
+        filtered_record = self._filter_columns(record_data, mode="read_only")
         
         # Ensure "Id" is preserved even if it's a read-only column
         if "Id" in record_data and "Id" not in filtered_record:

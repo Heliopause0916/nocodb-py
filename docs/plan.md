@@ -681,7 +681,7 @@ class ValidationResult:
 
 ### 实现状态
 - **NocoDBSchema类**：已实现字段分类功能，支持系统列、只读列、可写列的识别 ✅
-- **只读列过滤**：在`table.py`的`_filter_read_only_columns`方法中已实现 ✅
+- **列过滤功能**：在`table.py`的`_filter_columns`方法中已实现，支持"read_only"和"basic_only"两种模式 ✅
 - **列名验证**：在`table.py`的`_validate_column_names`方法中已实现 ✅
 - **链接列处理**：待实现，需要专门的链接记录API支持 ⏳
 
