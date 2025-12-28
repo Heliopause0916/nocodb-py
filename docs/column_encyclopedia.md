@@ -35,43 +35,54 @@ NocoDB 提供了丰富的列类型，可以满足各种数据管理需求。我�
 ### 5. 系统管理类型
 由系统自动管理的列类型
 
+## 基础列类型标识 (is_basic)
+
+在 NocoDB Python SDK 中，我们引入了 `is_basic` 属性来标识基础列类型。基础列类型具有以下特征：
+
+- **可写性**：用户可以独立修改这些列的值
+- **结构简单**：数据无嵌套，结构简单
+- **独立性**：不受其他列、表或值的影响
+- **直接修改**：可以直接通过记录操作 API 修改
+
+基础列类型是记录操作中最常用的类型，SDK 在处理这些类型时会进行优化。
+
 ## 数据类型参考表
 
-下表详细说明了每种列类型的数据类型映射：
+下表详细说明了每种列类型的数据类型映射和基础类型标识：
 
-| 列类型 | API 返回类型 | API 接受类型 | Python 推荐类型 | 备注 |
-|--------|-------------|-------------|----------------|------|
-| **单行文本** | `string` | `string` | `str` | - |
-| **长文本** | `string` | `string` | `str` | 支持富文本 |
-| **数字** | `integer` | `integer` | `int` | 支持大整数 |
-| **小数** | `string` | `string` 或 `number` | `float` | TODO: 需要测试是否接受数值类型 |
-| **日期** | `string` | `string` | `datetime.date` | 格式: YYYY-MM-DD |
-| **时间** | `string` | `string` | `datetime.time` | 格式: HH:mm:ss |
-| **日期时间** | `string` | `string` | `datetime.datetime` | ISO 8601 格式 |
-| **年份** | `integer` | `integer` | `int` | - |
-| **复选框** | `integer` (0/1) | `integer` (0/1) 或 `boolean` | `bool` | 推荐使用布尔值 |
-| **单选** | `string` | `string` | `str` | 选项标题 |
-| **多选** | `string` | `string` 或 `array` | `List[str]` | TODO: 需要测试数组格式支持 |
-| **邮箱** | `string` | `string` | `str` | 格式验证 |
-| **电话号码** | `string` | `string` | `str` | 国际格式 |
-| **URL** | `string` | `string` | `str` | 格式验证 |
-| **货币** | `string` | `string` 或 `number` | `float` | TODO: 需要测试数值类型支持 |
-| **百分比** | `integer` 或 `number` | `integer` 或 `number` | `float` | 范围: 0-100 |
-| **时长** | `string` | `string` 或 `number` | `float` | TODO: 需要测试数值类型支持 |
-| **评分** | `integer` | `integer` | `int` | 范围: 1-5 |
-| **附件** | `array` 或 `null` | `array` 或 `null` | `List[Dict]` 或 `None` | 附件对象数组 |
-| **JSON** | `string` | `string` 或 `object` | `Any` | TODO: 需要测试对象类型支持 |
-| **几何** | `string` | `string` | `str` | WKT 格式 |
-| **地理数据** | `string` | `string` | `str` | 经纬度坐标 |
-| **二维码** | `string` | `string` | `str` | 只读字段 |
-| **条形码** | `string` | `string` | `str` | 只读字段 |
-| **公式** | `string` 或 `number` | `string` 或 `number` | `Any` | 只读字段 |
-| **查找** | `array` | `array` | `List` | 只读字段 |
-| **汇总** | `string` 或 `number` | `string` 或 `number` | `Any` | 只读字段 |
-| **按钮** | `object` | `object` | `Dict` | 只读字段 |
-| **用户** | `array` | `array` | `List[Dict]` | 用户对象数组 |
-| **系统列** | 相应类型 | 相应类型 | 相应类型 | 只读字段 |
-| **链接列** | `integer` 或 `array` | `integer` 或 `array` | `int` 或 `List` | 只读字段 |
+| 列类型 | API 返回类型 | API 接受类型 | Python 推荐类型 | is_basic | 备注 |
+|--------|-------------|-------------|----------------|----------|------|
+| **单行文本** | `string` | `string` | `str` | ✅ | - |
+| **长文本** | `string` | `string` | `str` | ✅ | 支持富文本 |
+| **数字** | `integer` | `integer` | `int` | ✅ | 支持大整数 |
+| **小数** | `string` | `string` 或 `number` | `float` | ✅ | TODO: 需要测试是否接受数值类型 |
+| **日期** | `string` | `string` | `datetime.date` | ✅ | 格式: YYYY-MM-DD |
+| **时间** | `string` | `string` | `datetime.time` | ✅ | 格式: HH:mm:ss |
+| **日期时间** | `string` | `string` | `datetime.datetime` | ✅ | ISO 8601 格式 |
+| **年份** | `integer` | `integer` | `int` | ✅ | - |
+| **复选框** | `integer` (0/1) | `integer` (0/1) 或 `boolean` | `bool` | ✅ | 推荐使用布尔值 |
+| **单选** | `string` | `string` | `str` | ✅ | 选项标题 |
+| **多选** | `string` | `string` 或 `array` | `List[str]` | ✅ | TODO: 需要测试数组格式支持 |
+| **邮箱** | `string` | `string` | `str` | ✅ | 格式验证 |
+| **电话号码** | `string` | `string` | `str` | ✅ | 国际格式 |
+| **URL** | `string` | `string` | `str` | ✅ | 格式验证 |
+| **货币** | `string` | `string` 或 `number` | `float` | ✅ | TODO: 需要测试数值类型支持 |
+| **百分比** | `integer` 或 `number` | `integer` 或 `number` | `float` | ✅ | 范围: 0-100 |
+| **时长** | `string` | `string` 或 `number` | `float` | ✅ | TODO: 需要测试数值类型支持 |
+| **评分** | `integer` | `integer` | `int` | ✅ | 范围: 1-5 |
+| **附件** | `array` 或 `null` | `array` 或 `null` | `List[Dict]` 或 `None` | ❌ | 附件对象数组 |
+| **JSON** | `string` | `string` 或 `object` | `Any` | ❌ | TODO: 需要测试对象类型支持 |
+| **几何** | `string` | `string` | `str` | ❌ | WKT 格式 |
+| **地理数据** | `string` | `string` | `str` | ❌ | 经纬度坐标 |
+| **二维码** | `string` | `string` | `str` | ❌ | 只读字段 |
+| **条形码** | `string` | `string` | `str` | ❌ | 只读字段 |
+| **公式** | `string` 或 `number` | `string` 或 `number` | `Any` | ❌ | 只读字段 |
+| **查找** | `array` | `array` | `List` | ❌ | 只读字段 |
+| **汇总** | `string` 或 `number` | `string` 或 `number` | `Any` | ❌ | 只读字段 |
+| **按钮** | `object` | `object` | `Dict` | ❌ | 只读字段 |
+| **用户** | `array` | `array` | `List[Dict]` | ❌ | 用户对象数组 |
+| **系统列** | 相应类型 | 相应类型 | 相应类型 | ❌ | 只读字段 |
+| **链接列** | `integer` 或 `array` | `integer` 或 `array` | `int` 或 `List` | ❌ | 只读字段 |
 
 ## 基础数据类型
 

@@ -184,6 +184,46 @@ class NocoDBColumnType(Enum):
             NocoDBColumnType.LINK_TO_ANOTHER_RECORD
         }
 
+    def is_basic(self) -> bool:
+        """
+        Check if the column type is basic (writable, simple structure, independent).
+        
+        Basic column types are:
+        - Writable (not read-only)
+        - Simple structure (no nested data)
+        - Independent (not dependent on other columns/tables)
+        - Can be modified independently
+        
+        Returns:
+            bool: True if the column type is basic
+        """
+        basic_types = {
+            # Basic types
+            NocoDBColumnType.SINGLE_LINE_TEXT,
+            NocoDBColumnType.LONG_TEXT,
+            NocoDBColumnType.NUMBER,
+            NocoDBColumnType.DATE,
+            NocoDBColumnType.TIME,
+            NocoDBColumnType.DATETIME,
+            NocoDBColumnType.CHECKBOX,
+            NocoDBColumnType.YEAR,
+            NocoDBColumnType.DECIMAL,
+            NocoDBColumnType.PERCENT,
+            NocoDBColumnType.DURATION,
+            NocoDBColumnType.RATING,
+            
+            # Selection types
+            NocoDBColumnType.SINGLE_SELECT,
+            NocoDBColumnType.MULTI_SELECT,
+            
+            # Validation types
+            NocoDBColumnType.EMAIL,
+            NocoDBColumnType.URL,
+            NocoDBColumnType.PHONE_NUMBER,
+            NocoDBColumnType.CURRENCY,
+        }
+        return self in basic_types
+
 
 # pylint: disable=too-many-instance-attributes
 class NocoDBColumn:
