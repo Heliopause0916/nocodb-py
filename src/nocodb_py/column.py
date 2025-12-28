@@ -21,7 +21,7 @@ from .utils import parse_utc_datetime, count_of_nocodb_data
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .table import NocoDBTable
-    from .validator import ValidationLevel
+    from .validator import ValidationLevel, ValidationResult
 
 class NocoDBColumnType(Enum):
     """
@@ -365,7 +365,7 @@ class NocoDBColumn:
             self._column_info_cache = None
             self._column_info_timestamp = 0
 
-    def verify_data(self, value: Any, level: Optional['ValidationLevel'] = None) -> Any:
+    def verify_data(self, value: Any, level: Optional['ValidationLevel'] = None) -> 'ValidationResult':
         """
         Verify if the given value is valid for this column.
         
