@@ -521,17 +521,20 @@ class NocoDBTable:
                 raise RecordNotFoundError(self._table_id, record_id, e) from e
             raise
 
-    def _validate_column_names(self, record: Dict, column_titles: List[str]) -> None:
+    def _validate_column_names(self, record: Dict) -> None:
         """
         Validate that all keys in the record exist as column titles in the table.
         
         Args:
             record (Dict): The record to validate
-            column_titles (List[str]): List of valid column titles
             
         Raises:
             ValueError: If any key in the record is not a valid column title
         """
+        # Get column information for validation
+        columns_info = self.get_columns_full_info()
+        column_titles = [col.get('title', '') for col in columns_info]
+        
         invalid_columns = []
         for key in record.keys():
             if key not in column_titles:
@@ -540,17 +543,19 @@ class NocoDBTable:
         if invalid_columns:
             raise ValueError(f"Invalid column names: {invalid_columns}. Valid columns are: {column_titles}")
 
-    def _filter_read_only_columns(self, record: Dict, columns_info: List[Dict]) -> Dict:
+    def _filter_read_only_columns(self, record: Dict) -> Dict:
         """
         Filter out read-only columns from the record.
         
         Args:
             record (Dict): The record to filter
-            columns_info (List[Dict]): List of column information
             
         Returns:
             Dict: The filtered record with only writable columns
         """
+        # Get column information for filtering
+        columns_info = self.get_columns_full_info()
+        
         # Get column titles that are read-only
         read_only_titles = []
         for col in columns_info:
@@ -576,10 +581,6 @@ class NocoDBTable:
         Returns:
             Dict: Processed record data ready for API
         """
-        # Get column information for validation and filtering
-        columns_info = self.get_columns_full_info()
-        column_titles = [col.get('title', '') for col in columns_info]
-        
         if isinstance(record, NocoDBRecord):
             # Use record's data
             record_data = record.to_api_format()
@@ -590,10 +591,10 @@ class NocoDBTable:
             record_data = record
             
         # Validate column names
-        self._validate_column_names(record_data, column_titles)
+        self._validate_column_names(record_data)
         
         # Filter out read-only columns
-        return self._filter_read_only_columns(record_data, columns_info)
+        return self._filter_read_only_columns(record_data)
     
     def _process_record_for_update(self, record: Union[Dict, NocoDBRecord]) -> Tuple[Dict, int]:
         """
@@ -605,10 +606,6 @@ class NocoDBTable:
         Returns:
             Tuple[Dict, int]: Processed record data and record ID
         """
-        # Get column information for validation and filtering
-        columns_info = self.get_columns_full_info()
-        column_titles = [col.get('title', '') for col in columns_info]
-        
         if isinstance(record, NocoDBRecord):
             # Use record's data and ensure it has an ID
             record_data = record.to_api_format()
@@ -632,10 +629,10 @@ class NocoDBTable:
         
         # Validate column names (excluding "Id" which is required for update)
         record_without_id = {k: v for k, v in record_data.items() if k != "Id"}
-        self._validate_column_names(record_without_id, column_titles)
+        self._validate_column_names(record_without_id)
         
         # Filter out read-only columns (but keep "Id" for identification)
-        filtered_record = self._filter_read_only_columns(record_data, columns_info)
+        filtered_record = self._filter_read_only_columns(record_data)
         
         # Ensure "Id" is preserved even if it's a read-only column
         if "Id" in record_data and "Id" not in filtered_record:
