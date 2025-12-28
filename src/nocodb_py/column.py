@@ -79,6 +79,7 @@ class NocoDBColumnType(Enum):
     LINKS = "Links"
     LINK_TO_ANOTHER_RECORD = "LinkToAnotherRecord"
 
+    #pylint: disable=fixme
     # TODO: Handle this
     FOREIGN_KEY = "ForeignKey"
     

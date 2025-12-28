@@ -48,6 +48,7 @@ class Validator:
     Subclasses should implement validation logic for specific column types.
     """
     
+    #pylint: disable=unused-argument
     def validate(self, value: Any, column: NocoDBColumn, level: ValidationLevel) -> ValidationResult:
         """
         Validate a value for the column type.
