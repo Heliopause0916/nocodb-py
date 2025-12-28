@@ -432,20 +432,35 @@ class NocoDBTable:
             self._schema_cache = None
             self._schema_timestamp = 0
 
-    def list_records(self) -> NocoDBRecordSet:
+    def list_records(self, return_type: str = "object") -> Union[NocoDBRecordSet, List[Dict]]:
         """
         List all records from the table.
         
+        Args:
+            return_type (str): Return type - "object" for NocoDBRecordSet objects,
+                              "json" for raw JSON dictionary data. Defaults to "object".
+        
         Returns:
-            NocoDBRecordSet: A set of NocoDBRecord objects.
+            Union[NocoDBRecordSet, List[Dict]]: Records as NocoDBRecordSet or raw JSON data
+        
+        Raises:
+            ValueError: If return_type is not "object" or "json"
         """
+        # Validate return_type parameter
+        if return_type not in {"object", "json"}:
+            raise ValueError(f"Invalid return_type: {return_type}. Must be 'object' or 'json'")
+        
         path = f"{self.get_data_v2_prefix()}/records"
         # pylint: disable=protected-access
         # Reason: NocoDBClient._get is intentionally accessible to NocoDB-related classes
         response = self._project.client._get(path)
         records_data = response.get("list", [])
         
-        # Convert to NocoDBRecord objects
+        if return_type == "json":
+            # Return raw JSON data directly
+            return records_data
+        
+        # Convert to NocoDBRecord objects (default behavior)
         records = []
         for record_data in records_data:
             record = NocoDBRecord.from_api_format(record_data, table=self)
@@ -491,17 +506,20 @@ class NocoDBTable:
             
         return int(count)
 
-    def get_record(self, record_id:int) -> Optional[NocoDBRecord]:
+    def get_record(self, record_id:int, return_type: str = "object") -> Union[NocoDBRecord, Dict]:
         """
         Get a single record from the table by its ID.
         
         Args:
             record_id (int): The record ID to retrieve
+            return_type (str): Return type - "object" for NocoDBRecord object,
+                              "json" for raw JSON dictionary data. Defaults to "object".
             
         Returns:
-            Optional[NocoDBRecord]: The record as a NocoDBRecord object if found
+            Union[NocoDBRecord, Dict]: Record as NocoDBRecord object or raw JSON data
             
         Raises:
+            ValueError: If return_type is not "object" or "json"
             RecordNotFoundError: If the record with the specified ID does not exist
             requests.exceptions.HTTPError: For other HTTP errors (e.g., 500 Internal Server Error)
             
@@ -509,12 +527,26 @@ class NocoDBTable:
             >>> record = table.get_record(123)
             >>> print(record)
             NocoDBRecord(record_id=123, table_id='table_id', status=attached, data={'title': 'Sample Record', 'created_at': '2023-01-01T00:00:00Z'})
+            
+            >>> record_data = table.get_record(123, return_type="json")
+            >>> print(record_data)
+            {'Id': 123, 'title': 'Sample Record', 'created_at': '2023-01-01T00:00:00Z'}
         """
+        # Validate return_type parameter
+        if return_type not in {"object", "json"}:
+            raise ValueError(f"Invalid return_type: {return_type}. Must be 'object' or 'json'")
+        
         try:
             path = f"{self.get_data_v2_prefix()}/records/{record_id}"
             # pylint: disable=protected-access
             # Reason: NocoDBClient._get is intentionally accessible to NocoDB-related classes
             response = self._project.client._get(path)
+            
+            if return_type == "json":
+                # Return raw JSON data directly
+                return response
+            
+            # Convert to NocoDBRecord object (default behavior)
             return NocoDBRecord.from_api_format(response, table=self)
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
@@ -925,7 +957,8 @@ class NocoDBTable:
         return response
     
     # Backward compatibility methods - these wrap the new separated methods
-    def create_records(self, records: Union[Dict, NocoDBRecord, List[Dict], List[NocoDBRecord]]) -> Union[NocoDBRecord, List[NocoDBRecord]]:
+    def create_records(self, records: Union[Dict, NocoDBRecord, List[Dict], List[NocoDBRecord]],
+                      return_type: str = "object") -> Union[NocoDBRecord, List[NocoDBRecord], Dict, List[Dict]]:
         """
         Create one or more records in the table (backward compatibility wrapper).
         
@@ -934,12 +967,14 @@ class NocoDBTable:
         Args:
             records (Union[Dict, NocoDBRecord, List[Dict], List[NocoDBRecord]]):
                 Single record or list of records to create. Can be dictionaries or NocoDBRecord objects.
+            return_type (str): Return type - "object" for NocoDBRecord objects,
+                              "json" for raw JSON dictionary data. Defaults to "object".
             
         Returns:
-            Union[NocoDBRecord, List[NocoDBRecord]]: Created record(s) as NocoDBRecord objects
+            Union[NocoDBRecord, List[NocoDBRecord], Dict, List[Dict]]: Created record(s) as NocoDBRecord objects or raw JSON data
             
         Raises:
-            ValueError: If column names in records are invalid
+            ValueError: If column names in records are invalid or if return_type is invalid
             requests.exceptions.RequestException: If the API request fails
             
         Example:
@@ -948,11 +983,10 @@ class NocoDBTable:
             >>> print(result)
             NocoDBRecord(record_id=123, table_id='table_id', status=attached, data={'Name': 'John', 'Age': 30})
             
-            >>> # Create single record from NocoDBRecord
-            >>> record = NocoDBRecord({"Name": "John", "Age": 30})
-            >>> result = table.create_records(record)
+            >>> # Create single record from dictionary with JSON return
+            >>> result = table.create_records({"Name": "John", "Age": 30}, return_type="json")
             >>> print(result)
-            NocoDBRecord(record_id=123, table_id='table_id', status=attached, data={'Name': 'John', 'Age': 30})
+            {'Id': 123, 'Name': 'John', 'Age': 30}
             
             >>> # Create multiple records
             >>> result = table.create_records([
@@ -961,14 +995,42 @@ class NocoDBTable:
             ... ])
             >>> print(result)
             [NocoDBRecord(record_id=123, ...), NocoDBRecord(record_id=124, ...)]
+            
+            >>> # Create multiple records with JSON return
+            >>> result = table.create_records([
+            ...     {"Name": "John", "Age": 30},
+            ...     {"Name": "Jane", "Age": 25}
+            ... ], return_type="json")
+            >>> print(result)
+            [{'Id': 123, 'Name': 'John', 'Age': 30}, {'Id': 124, 'Name': 'Jane', 'Age': 25}]
         """
+        # Validate return_type parameter
+        if return_type not in {"object", "json"}:
+            raise ValueError(f"Invalid return_type: {return_type}. Must be 'object' or 'json'")
+        
         if isinstance(records, list):
             # Type assertion: List[Dict] | List[NocoDBRecord] is compatible with List[Dict | NocoDBRecord]
-            return self._create_records_batch(records)  # type: ignore
+            result = self._create_records_batch(records)  # type: ignore
+            
+            if return_type == "json":
+                # Convert NocoDBRecord objects to JSON format
+                if isinstance(result, list):
+                    return [record.to_api_format() for record in result]
+                else:
+                    return result.to_api_format() if hasattr(result, 'to_api_format') else result
+            
+            return result
         else:
-            return self.create_record(records)
+            result = self.create_record(records)
+            
+            if return_type == "json":
+                # Convert NocoDBRecord object to JSON format
+                return result.to_api_format() if hasattr(result, 'to_api_format') else result
+            
+            return result
     
-    def update_records(self, records: Union[Dict, NocoDBRecord, List[Dict], List[NocoDBRecord]]) -> Union[NocoDBRecord, List[NocoDBRecord]]:
+    def update_records(self, records: Union[Dict, NocoDBRecord, List[Dict], List[NocoDBRecord]],
+                      return_type: str = "object") -> Union[NocoDBRecord, List[NocoDBRecord], Dict, List[Dict]]:
         """
         Update one or more records in the table (backward compatibility wrapper).
         
@@ -978,12 +1040,14 @@ class NocoDBTable:
             records (Union[Dict, NocoDBRecord, List[Dict], List[NocoDBRecord]]):
                 Single record or list of records to update. Can be dictionaries or NocoDBRecord objects.
                 Each record must contain an "Id" field to identify which record to update.
+            return_type (str): Return type - "object" for NocoDBRecord objects,
+                              "json" for raw JSON dictionary data. Defaults to "object".
             
         Returns:
-            Union[NocoDBRecord, List[NocoDBRecord]]: Updated record(s) as NocoDBRecord objects
+            Union[NocoDBRecord, List[NocoDBRecord], Dict, List[Dict]]: Updated record(s) as NocoDBRecord objects or raw JSON data
             
         Raises:
-            ValueError: If column names in records are invalid or if "Id" field is missing
+            ValueError: If column names in records are invalid, if "Id" field is missing, or if return_type is invalid
             requests.exceptions.RequestException: If the API request fails
             
         Example:
@@ -991,6 +1055,11 @@ class NocoDBTable:
             >>> result = table.update_records({"Id": 123, "Name": "John Updated", "Age": 31})
             >>> print(result)
             NocoDBRecord(record_id=123, table_id='table_id', status=attached, data={'Name': 'John Updated', 'Age': 31})
+            
+            >>> # Update single record from dictionary with JSON return
+            >>> result = table.update_records({"Id": 123, "Name": "John Updated", "Age": 31}, return_type="json")
+            >>> print(result)
+            {'Id': 123, 'Name': 'John Updated', 'Age': 31}
             
             >>> # Update single record from NocoDBRecord
             >>> record = table.get_record(123)
@@ -1006,14 +1075,42 @@ class NocoDBTable:
             ... ])
             >>> print(result)
             [NocoDBRecord(record_id=123, ...), NocoDBRecord(record_id=124, ...)]
+            
+            >>> # Update multiple records with JSON return
+            >>> result = table.update_records([
+            ...     {"Id": 123, "Name": "John Updated", "Age": 31},
+            ...     {"Id": 124, "Name": "Jane Updated", "Age": 26}
+            ... ], return_type="json")
+            >>> print(result)
+            [{'Id': 123, 'Name': 'John Updated', 'Age': 31}, {'Id': 124, 'Name': 'Jane Updated', 'Age': 26}]
         """
+        # Validate return_type parameter
+        if return_type not in {"object", "json"}:
+            raise ValueError(f"Invalid return_type: {return_type}. Must be 'object' or 'json'")
+        
         if isinstance(records, list):
             # Type assertion: List[Dict] | List[NocoDBRecord] is compatible with List[Dict | NocoDBRecord]
-            return self._update_records_batch(records)  # type: ignore
+            result = self._update_records_batch(records)  # type: ignore
+            
+            if return_type == "json":
+                # Convert NocoDBRecord objects to JSON format
+                if isinstance(result, list):
+                    return [record.to_api_format() for record in result]
+                else:
+                    return result.to_api_format() if hasattr(result, 'to_api_format') else result
+            
+            return result
         else:
-            return self.update_record(records)
+            result = self.update_record(records)
+            
+            if return_type == "json":
+                # Convert NocoDBRecord object to JSON format
+                return result.to_api_format() if hasattr(result, 'to_api_format') else result
+            
+            return result
     
-    def delete_records(self, records: Union[Dict, NocoDBRecord, List[Dict], List[NocoDBRecord]]) -> Union[Dict, List[Dict]]:
+    def delete_records(self, records: Union[Dict, NocoDBRecord, List[Dict], List[NocoDBRecord]],
+                      return_type: str = "object") -> Union[Dict, List[Dict]]:
         """
         Delete one or more records from the table (backward compatibility wrapper).
         
@@ -1023,17 +1120,24 @@ class NocoDBTable:
             records (Union[Dict, NocoDBRecord, List[Dict], List[NocoDBRecord]]):
                 Single record or list of records to delete. Can be dictionaries or NocoDBRecord objects.
                 Each record must contain an "Id" field to identify which record to delete.
+            return_type (str): Return type - "object" for NocoDBRecord objects,
+                              "json" for raw JSON dictionary data. Defaults to "object".
             
         Returns:
             Union[Dict, List[Dict]]: Deletion result(s) (API response)
             
         Raises:
-            ValueError: If "Id" field is missing in records
+            ValueError: If "Id" field is missing in records or if return_type is invalid
             requests.exceptions.RequestException: If the API request fails
             
         Example:
             >>> # Delete single record from dictionary
             >>> result = table.delete_records({"Id": 123})
+            >>> print(result)
+            {"Id": 123}
+            
+            >>> # Delete single record from dictionary with JSON return
+            >>> result = table.delete_records({"Id": 123}, return_type="json")
             >>> print(result)
             {"Id": 123}
             
@@ -1050,7 +1154,21 @@ class NocoDBTable:
             ... ])
             >>> print(result)
             [{"Id": 123}, {"Id": 124}]
+            
+            >>> # Delete multiple records with JSON return
+            >>> result = table.delete_records([
+            ...     {"Id": 123},
+            ...     {"Id": 124}
+            ... ], return_type="json")
+            >>> print(result)
+            [{"Id": 123}, {"Id": 124}]
         """
+        # Validate return_type parameter
+        if return_type not in {"object", "json"}:
+            raise ValueError(f"Invalid return_type: {return_type}. Must be 'object' or 'json'")
+        
+        # For delete operations, the API response is already in JSON format
+        # so we can return it directly regardless of return_type
         if isinstance(records, list):
             # Type assertion: List[Dict] | List[NocoDBRecord] is compatible with List[Dict | NocoDBRecord]
             return self._delete_records_batch(records)  # type: ignore
