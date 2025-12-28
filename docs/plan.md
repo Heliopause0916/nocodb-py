@@ -109,9 +109,10 @@
 - **列名验证**：确保记录字段与表列名匹配
 - **拷贝和序列化支持**：核心类支持Python标准拷贝操作
 - **NocoDBRecord规范**：已实现明确的记录来源、状态转换和复制操作规范
+- **验证器框架**：基础验证器架构和单行文本验证器实现
 
 ### ⏳ 待实现功能
-- **列类型验证系统**：20+种列类型的验证和转换
+- **列类型验证系统**：20+种列类型的验证和转换（仅单行文本验证器已实现）
 - **特殊类型处理**：附件上传、链接记录管理、高级列类型处理
 - **高级查询功能**：字段筛选、排序、分页、视图过滤
 - **缓存策略优化**：记录数据的智能缓存机制
@@ -120,7 +121,8 @@
 ### 核心代码文件
 - ✅ [`table.py`](../src/nocodb_py/table.py)：基础记录CRUD操作
 - ✅ [`record.py`](../src/nocodb_py/record.py)：记录对象模型（已更新规范）
-- ✅ [`column.py`](../src/nocodb_py/column.py)：表结构定义
+- ✅ [`column.py`](../src/nocodb_py/column.py)：表结构定义和列类型枚举
+- ✅ [`validator.py`](../src/nocodb_py/validator.py)：验证器框架和单行文本验证器
 
 ### NocoDBRecord规范总结
 基于最新协商，NocoDBRecord遵循以下核心规范：
@@ -190,17 +192,19 @@ graph LR
 
 ### 🔄 第二阶段：列类型验证系统（进行中）
 
-#### 验证器框架
+#### 验证器框架 ✅ 已实现
 ```python
-class ColumnValidator:
-    def validate(self, value: Any, column_info: Dict) -> ValidationResult
-    def convert(self, value: Any, column_info: Dict) -> Any
+class Validator:
+    def validate(self, value: Any, column: NocoDBColumn, level: ValidationLevel) -> ValidationResult
+    def convert(self, value: Any, column: NocoDBColumn) -> Any
+    def normalize(self, value: Any, column: Optional[NocoDBColumn] = None) -> Any
 ```
 
 #### 验证类型范围
-- **基础类型**：文本、数字、日期、布尔值等
-- **高级类型**：选择、邮箱、URL、JSON等
-- **特殊类型**：用户、公式、查找、汇总等
+- ✅ **单行文本验证器**：SingleLineTextValidator已实现
+- ⏳ **基础类型**：数字、日期、布尔值等（待实现）
+- ⏳ **高级类型**：选择、邮箱、URL、JSON等（待实现）
+- ⏳ **特殊类型**：用户、公式、查找、汇总等（待实现）
 
 ### ⏳ 第三阶段：高级功能（待实现）
 
@@ -728,9 +732,11 @@ class ValidationResult:
 - [x] 表结构支持：NocoDBSchema类
 - [x] 只读列过滤和列名验证
 - [x] 系统字段处理
+- [x] 验证器框架和单行文本验证器
 
 #### 第二阶段（高优先级）⏳
-- [ ] 基础数据类型验证：SingleLineText, LongText, Number, Decimal
+- [x] 基础数据类型验证：SingleLineText ✅
+- [ ] 基础数据类型验证：LongText, Number, Decimal
 - [ ] 日期时间类型验证：Date, Time, DateTime, Year
 - [ ] 布尔类型验证：Checkbox
 - [ ] 选择类型验证：SingleSelect, MultiSelect
@@ -819,6 +825,7 @@ class ValidationResult:
 
 ### 功能完成度
 - [x] 支持所有基础记录操作（CRUD）✅
+- [x] 验证器框架和单行文本验证器 ✅
 - [ ] 实现主要列类型的验证和转换 ⏳
 - [ ] 特殊类型（附件、链接）有基本支持框架 ⏳
 - [x] 完整的错误处理和用户反馈 ✅
@@ -829,6 +836,7 @@ class ValidationResult:
 - [x] 基础记录操作集成测试 ✅
 - [x] 记录对象模型单元测试 ✅
 - [x] 表结构分类功能测试 ✅
+- [ ] 验证器框架单元测试 ⏳
 - [ ] 集成测试覆盖主要场景
 - [ ] 代码符合Pylint标准
 - [ ] 类型提示完整准确
@@ -837,6 +845,7 @@ class ValidationResult:
 - [ ] API使用示例完整
 - [ ] 列类型约束说明清晰
 - [ ] 错误处理指南详细
+- [x] 验证器框架文档 ✅
 
 ## 时间规划
 
@@ -869,7 +878,7 @@ class ValidationResult:
 - 分布式缓存支持
 
 ---
-*方案版本：1.3*
+*方案版本：1.4*
 *创建时间：2025-12-21*
-*最后更新：2025-12-25*
-*更新内容：NocoDBRecord和NocoDBRecordSet设计规范*
+*最后更新：2025-12-28*
+*更新内容：验证器框架实现状态更新，单行文本验证器已实现*
