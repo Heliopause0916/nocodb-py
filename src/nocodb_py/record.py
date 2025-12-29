@@ -55,7 +55,22 @@ class NocoDBRecord:
     
     def _compute_data_hash(self) -> int:
         """Compute hash of the current data for modification detection"""
-        return hash(frozenset(self._data.items()))
+        def _hash_value(value: Any) -> int:
+            """Recursively compute hash for nested data structures"""
+            if isinstance(value, dict):
+                # Hash dictionary by recursively hashing key-value pairs
+                return hash(frozenset((k, _hash_value(v)) for k, v in value.items()))
+            elif isinstance(value, (list, tuple)):
+                # Hash sequence by recursively hashing elements
+                return hash(tuple(_hash_value(item) for item in value))
+            elif isinstance(value, set):
+                # Hash set by recursively hashing elements
+                return hash(frozenset(_hash_value(item) for item in value))
+            else:
+                # Hash primitive values directly
+                return hash(value)
+        
+        return _hash_value(self._data)
     
     @property
     def record_id(self) -> Optional[int]:
@@ -176,8 +191,24 @@ class NocoDBRecord:
         self._data[key] = value
     
     def get(self, key: str, default: Any = None) -> Any:
-        """Safe access to user data"""
-        return self._data.get(key, default)
+        """Safe access to user data with deep copy protection"""
+        value = self._data.get(key, default)
+        # Return deep copy to prevent external modifications
+        # Only copy if value is not None and not the default value
+        if value is not None and value is not default:
+            return copy.deepcopy(value)
+        else:
+            return value
+    
+    def set(self, key: str, value: Any) -> None:
+        """
+        Set value for a specific field by title
+        
+        Args:
+            key: Field title/name
+            value: Value to set
+        """
+        self._data[key] = value
     
     def __str__(self) -> str:
         """String representation"""
