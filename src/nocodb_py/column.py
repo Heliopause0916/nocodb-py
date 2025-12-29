@@ -433,60 +433,209 @@ class NocoDBSchema:
     This class represents the schema (structure) of a NocoDB table, providing
     column metadata and validation rules for record operations.
     
+    Supports two states: online (attached to table) and offline (local schema definition).
+    
     Attributes:
-        table ('NocoDBTable'): The NocoDB table instance
-        _columns_info (List[Dict]): List of column information
-        _columns_by_title (Dict[str, Dict]): Column info indexed by title
-        _columns_by_id (Dict[str, Dict]): Column info indexed by ID
+        table (Optional['NocoDBTable']): The NocoDB table instance, None for offline schema
         _column_types_by_title (Dict[str, NocoDBColumnType]): Column types indexed by title
-        _column_types_by_id (Dict[str, NocoDBColumnType]): Column types indexed by ID
+        _column_types_by_id (Dict[str, NocoDBColumnType]): Column types indexed by ID (attached state only)
     """
     
-    def __init__(self, table: 'NocoDBTable'):
+    def __init__(self, table: Optional['NocoDBTable'] = None):
         """
-        Initialize the NocoDBSchema with a table instance
+        Initialize the NocoDBSchema with an optional table instance
         
         Args:
-            table ('NocoDBTable'): The NocoDB table instance
+            table (Optional['NocoDBTable']): The NocoDB table instance, None for offline schema
         """
         self.table = table
-        self._columns_info = None
-        self._columns_by_title = None
-        self._columns_by_id = None
-        self._column_types_by_title = None
-        self._column_types_by_id = None
+        self._column_types_by_title: Dict[str, NocoDBColumnType] = {}  # Used for both online and offline states
+        self._column_types_by_id: Optional[Dict[str, NocoDBColumnType]] = None   # Only used in attached state
     
-    def load_schema(self, force_refresh: bool = False) -> None:
+    @property
+    def is_attached(self) -> bool:
+        """Whether the schema is attached to a NocoDB table"""
+        return self.table is not None
+    
+    @property
+    def is_detached(self) -> bool:
+        """Whether the schema is offline (detached)"""
+        return not self.is_attached
+    
+    def attach(self, table: 'NocoDBTable') -> None:
+        """
+        Attach offline schema to a table (one-time operation)
+        
+        Args:
+            table: Table object to attach to
+            
+        Raises:
+            RuntimeError: If schema is already attached
+        """
+        if self.is_attached:
+            raise RuntimeError("Schema is already attached to a table")
+        self.table = table
+        # Execute schema synchronization
+        self._sync_with_table()
+    
+    def load_schema(self, force_refresh: bool = False, table: Optional['NocoDBTable'] = None) -> None:
         """
         Load the table schema information
         
         Args:
             force_refresh (bool): Whether to force a refresh of the schema cache
-        """
-        columns_info = self.table.get_columns_full_info(force_refresh)
-        self._columns_info = columns_info
-        
-        # Build indexes for efficient lookup
-        self._columns_by_title = {col.get('title'): col for col in columns_info}
-        self._columns_by_id = {col.get('id'): col for col in columns_info}
-        
-        # Build column type mappings
-        self._column_types_by_title = {}
-        self._column_types_by_id = {}
-        
-        for col in columns_info:
-            title = col.get('title')
-            column_id = col.get('id')
-            type_string = col.get('uidt', '')
+            table (Optional['NocoDBTable']): Optional table object for attach operation
             
-            if title and column_id and type_string:
-                try:
-                    column_type = NocoDBColumnType.from_string(type_string)
-                    self._column_types_by_title[title] = column_type
-                    self._column_types_by_id[column_id] = column_type
-                except ValueError:
-                    # Skip columns with unknown types
-                    continue
+        Raises:
+            RuntimeError: If trying to attach to already attached schema
+        """
+        # Attach operation (one-time)
+        if table is not None and self.is_detached:
+            self.attach(table)
+            return
+        
+        if self.is_attached:
+            if self.table is not None:  # Type safety check
+                columns_info = self.table.get_columns_full_info(force_refresh)
+                self._columns_info = columns_info
+                
+                # Build indexes for efficient lookup
+                self._columns_by_title = {col.get('title'): col for col in columns_info}
+                self._columns_by_id = {col.get('id'): col for col in columns_info}
+                
+                # Build column type mappings
+                self._column_types_by_title = {}
+                self._column_types_by_id = {}
+                
+                for col in columns_info:
+                    title = col.get('title')
+                    column_id = col.get('id')
+                    type_string = col.get('uidt', '')
+                    
+                    if title and column_id and type_string:
+                        try:
+                            column_type = NocoDBColumnType.from_string(type_string)
+                            self._column_types_by_title[title] = column_type
+                            self._column_types_by_id[column_id] = column_type
+                        except ValueError:
+                            # Skip columns with unknown types
+                            continue
+        else:
+            # Offline state: build schema from offline columns
+            self._build_offline_schema()
+    
+    def _build_offline_schema(self) -> None:
+        """Build schema indexes from offline column definitions"""
+        # For offline schema, we only need to ensure _column_types_by_title is populated
+        # _column_types_by_id remains None in offline state
+        self._column_types_by_id = None
+    
+    def _sync_with_table(self) -> None:
+        """
+        Synchronize offline schema with table schema
+        
+        Handles conflicts and mismatches between offline and table columns.
+        """
+        if not self.is_attached or self.table is None:
+            return
+        
+        # Load table schema
+        table_columns_info = self.table.get_columns_full_info()
+        table_columns_by_title = {col.get('title'): col for col in table_columns_info}
+        
+        # Conflict handling
+        for title, offline_type in list(self._column_types_by_title.items()):
+            if title and title in table_columns_by_title:  # Ensure title is not None
+                table_col = table_columns_by_title[title]
+                table_type = NocoDBColumnType.from_string(table_col.get('uidt', ''))
+                
+                if table_type == offline_type:
+                    # Type match: assign column ID naturally
+                    pass  # Natural handling
+                else:
+                    # Type mismatch: warn and force type change
+                    import warnings
+                    warnings.warn(
+                        f"Column '{title}' type mismatch: offline={offline_type}, table={table_type}. "
+                        f"Using table type.",
+                        UserWarning
+                    )
+                    # Force using table type
+                    self._column_types_by_title[title] = table_type
+            elif title:  # Only process if title is not None
+                # Offline exists but table doesn't: warn and remove
+                import warnings
+                warnings.warn(
+                    f"Column '{title}' exists in offline schema but not in table. Removing from schema.",
+                    UserWarning
+                )
+                del self._column_types_by_title[title]
+        
+        # Handle columns that exist in table but not in offline schema
+        for title, table_col in table_columns_by_title.items():
+            if title and title not in self._column_types_by_title:  # Ensure title is not None
+                # Create this column
+                table_type = NocoDBColumnType.from_string(table_col.get('uidt', ''))
+                self._column_types_by_title[title] = table_type
+        
+        # Rebuild schema after synchronization
+        self._build_offline_schema()
+    
+    def add_column(self, title: str, column_type: NocoDBColumnType) -> None:
+        """
+        Add a column to offline schema (basic types only)
+        
+        Args:
+            title (str): Column title
+            column_type (NocoDBColumnType): Column type (must be basic)
+            
+        Raises:
+            RuntimeError: If schema is attached
+            ValueError: If column type is not basic
+        """
+        if not self.is_detached:
+            raise RuntimeError("Cannot add columns to attached schema")
+        if not column_type.is_basic():
+            raise ValueError("Only basic column types can be added to offline schema")
+        self._column_types_by_title[title] = column_type
+    
+    def remove_column(self, title: str) -> None:
+        """
+        Remove a column from offline schema
+        
+        Args:
+            title (str): Column title to remove
+            
+        Raises:
+            RuntimeError: If schema is attached
+            KeyError: If column not found
+        """
+        if not self.is_detached:
+            raise RuntimeError("Cannot remove columns from attached schema")
+        if title not in self._column_types_by_title:
+            raise KeyError(f"Column '{title}' not found")
+        del self._column_types_by_title[title]
+    
+    def update_column(self, title: str, new_type: NocoDBColumnType) -> None:
+        """
+        Update column type in offline schema
+        
+        Args:
+            title (str): Column title
+            new_type (NocoDBColumnType): New column type (must be basic)
+            
+        Raises:
+            RuntimeError: If schema is attached
+            KeyError: If column not found
+            ValueError: If column type is not basic
+        """
+        if not self.is_detached:
+            raise RuntimeError("Cannot update columns in attached schema")
+        if title not in self._column_types_by_title:
+            raise KeyError(f"Column '{title}' not found")
+        if not new_type.is_basic():
+            raise ValueError("Only basic column types can be used in offline schema")
+        self._column_types_by_title[title] = new_type
     
     def get_column_by_title(self, title: str) -> Optional[Dict]:
         """
@@ -567,15 +716,13 @@ class NocoDBSchema:
         Returns:
             List[str]: List of writable field titles
         """
-        if self._columns_by_title is None or self._column_types_by_title is None:
+        if not self._column_types_by_title:
             self.load_schema()
         
         writable = []
-        if self._columns_by_title and self._column_types_by_title:
-            for title, col_info in self._columns_by_title.items():
-                column_type = self._column_types_by_title.get(title)
-                if column_type and not column_type.is_read_only():
-                    writable.append(title)
+        for title, column_type in self._column_types_by_title.items():
+            if title and not column_type.is_read_only():
+                writable.append(title)
         return writable
     
     @property
@@ -586,15 +733,13 @@ class NocoDBSchema:
         Returns:
             List[str]: List of system field titles
         """
-        if self._columns_by_title is None or self._column_types_by_title is None:
+        if not self._column_types_by_title:
             self.load_schema()
         
         system_fields = []
-        if self._columns_by_title and self._column_types_by_title:
-            for title, col_info in self._columns_by_title.items():
-                column_type = self._column_types_by_title.get(title)
-                if column_type and column_type.is_system_managed():
-                    system_fields.append(title)
+        for title, column_type in self._column_types_by_title.items():
+            if title and column_type.is_system_managed():
+                system_fields.append(title)
         return system_fields
     
     @property
@@ -605,15 +750,13 @@ class NocoDBSchema:
         Returns:
             List[str]: List of read-only field titles
         """
-        if self._columns_by_title is None or self._column_types_by_title is None:
+        if not self._column_types_by_title:
             self.load_schema()
         
         readonly = []
-        if self._columns_by_title and self._column_types_by_title:
-            for title, col_info in self._columns_by_title.items():
-                column_type = self._column_types_by_title.get(title)
-                if column_type and column_type.is_read_only():
-                    readonly.append(title)
+        for title, column_type in self._column_types_by_title.items():
+            if title and column_type.is_read_only():
+                readonly.append(title)
         return readonly
     
     @property
@@ -624,17 +767,31 @@ class NocoDBSchema:
         Returns:
             List[str]: List of all field titles
         """
-        if self._columns_by_title is None:
+        if not self._column_types_by_title:
             self.load_schema()
-        if self._columns_by_title:
-            # Ensure we only return string keys
-            return [str(key) for key in self._columns_by_title.keys() if key is not None]
-        return []
+        # Ensure we only return string keys
+        return [str(key) for key in self._column_types_by_title.keys() if key is not None]
+    
+    @property
+    def offline_columns(self) -> Dict[str, NocoDBColumnType]:
+        """
+        Get all offline column definitions (detached state only)
+        
+        Returns:
+            Dict[str, NocoDBColumnType]: Mapping of column titles to types
+        """
+        if not self.is_detached:
+            raise RuntimeError("Offline columns are only available in detached state")
+        return self._column_types_by_title.copy()
     
     def __str__(self) -> str:
         """String representation of the schema"""
-        field_count = len(self._columns_by_title) if self._columns_by_title else 0
-        return f"NocoDBSchema(table={self.table}, fields={field_count})"
+        if self.is_attached:
+            field_count = len(self._column_types_by_title) if self._column_types_by_title else 0
+            return f"NocoDBSchema(table={self.table}, fields={field_count}, attached)"
+        else:
+            field_count = len(self._column_types_by_title)
+            return f"NocoDBSchema(offline_fields={field_count}, detached)"
     
     def __repr__(self) -> str:
         """Official string representation"""
