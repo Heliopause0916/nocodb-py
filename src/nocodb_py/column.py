@@ -438,9 +438,8 @@ class NocoDBSchema:
         _columns_info (List[Dict]): List of column information
         _columns_by_title (Dict[str, Dict]): Column info indexed by title
         _columns_by_id (Dict[str, Dict]): Column info indexed by ID
-        _writable_columns (List[Dict]): List of writable columns
-        _readonly_columns (List[Dict]): List of read-only columns
-        _system_columns (List[Dict]): List of system columns
+        _column_types_by_title (Dict[str, NocoDBColumnType]): Column types indexed by title
+        _column_types_by_id (Dict[str, NocoDBColumnType]): Column types indexed by ID
     """
     
     def __init__(self, table: 'NocoDBTable'):
@@ -454,9 +453,8 @@ class NocoDBSchema:
         self._columns_info = None
         self._columns_by_title = None
         self._columns_by_id = None
-        self._writable_columns = None
-        self._readonly_columns = None
-        self._system_columns = None
+        self._column_types_by_title = None
+        self._column_types_by_id = None
     
     def load_schema(self, force_refresh: bool = False) -> None:
         """
@@ -472,18 +470,23 @@ class NocoDBSchema:
         self._columns_by_title = {col.get('title'): col for col in columns_info}
         self._columns_by_id = {col.get('id'): col for col in columns_info}
         
-        # Classify columns by their properties
-        self._writable_columns = []
-        self._readonly_columns = []
-        self._system_columns = []
+        # Build column type mappings
+        self._column_types_by_title = {}
+        self._column_types_by_id = {}
         
         for col in columns_info:
-            if col.get('system') == 1:
-                self._system_columns.append(col)
-            elif col.get('readonly') == 1:
-                self._readonly_columns.append(col)
-            else:
-                self._writable_columns.append(col)
+            title = col.get('title')
+            column_id = col.get('id')
+            type_string = col.get('uidt', '')
+            
+            if title and column_id and type_string:
+                try:
+                    column_type = NocoDBColumnType.from_string(type_string)
+                    self._column_types_by_title[title] = column_type
+                    self._column_types_by_id[column_id] = column_type
+                except ValueError:
+                    # Skip columns with unknown types
+                    continue
     
     def get_column_by_title(self, title: str) -> Optional[Dict]:
         """
@@ -513,6 +516,34 @@ class NocoDBSchema:
             self.load_schema()
         return self._columns_by_id.get(column_id) if self._columns_by_id else None
     
+    def get_column_type_by_title(self, title: str) -> Optional[NocoDBColumnType]:
+        """
+        Get column type by column title
+        
+        Args:
+            title (str): The column title to look up
+            
+        Returns:
+            Optional[NocoDBColumnType]: Column type, or None if not found
+        """
+        if self._column_types_by_title is None:
+            self.load_schema()
+        return self._column_types_by_title.get(title) if self._column_types_by_title else None
+    
+    def get_column_type_by_id(self, column_id: str) -> Optional[NocoDBColumnType]:
+        """
+        Get column type by column ID
+        
+        Args:
+            column_id (str): The column ID to look up
+            
+        Returns:
+            Optional[NocoDBColumnType]: Column type, or None if not found
+        """
+        if self._column_types_by_id is None:
+            self.load_schema()
+        return self._column_types_by_id.get(column_id) if self._column_types_by_id else None
+    
     def is_writable_field(self, field_name: str) -> bool:
         """
         Check if a field is writable (not system or read-only)
@@ -523,10 +554,10 @@ class NocoDBSchema:
         Returns:
             bool: True if the field is writable, False otherwise
         """
-        col_info = self.get_column_by_title(field_name)
-        if not col_info:
+        column_type = self.get_column_type_by_title(field_name)
+        if not column_type:
             return False
-        return col_info.get('system', 0) == 0 and col_info.get('readonly', 0) == 0
+        return not column_type.is_read_only()
     
     @property
     def writable_fields(self) -> List[str]:
@@ -536,9 +567,16 @@ class NocoDBSchema:
         Returns:
             List[str]: List of writable field titles
         """
-        if self._writable_columns is None:
+        if self._columns_by_title is None or self._column_types_by_title is None:
             self.load_schema()
-        return [col.get('title') for col in self._writable_columns] if self._writable_columns else []
+        
+        writable = []
+        if self._columns_by_title and self._column_types_by_title:
+            for title, col_info in self._columns_by_title.items():
+                column_type = self._column_types_by_title.get(title)
+                if column_type and not column_type.is_read_only():
+                    writable.append(title)
+        return writable
     
     @property
     def system_fields(self) -> List[str]:
@@ -548,9 +586,16 @@ class NocoDBSchema:
         Returns:
             List[str]: List of system field titles
         """
-        if self._system_columns is None:
+        if self._columns_by_title is None or self._column_types_by_title is None:
             self.load_schema()
-        return [col.get('title') for col in self._system_columns] if self._system_columns else []
+        
+        system_fields = []
+        if self._columns_by_title and self._column_types_by_title:
+            for title, col_info in self._columns_by_title.items():
+                column_type = self._column_types_by_title.get(title)
+                if column_type and column_type.is_system_managed():
+                    system_fields.append(title)
+        return system_fields
     
     @property
     def readonly_fields(self) -> List[str]:
@@ -560,9 +605,16 @@ class NocoDBSchema:
         Returns:
             List[str]: List of read-only field titles
         """
-        if self._readonly_columns is None:
+        if self._columns_by_title is None or self._column_types_by_title is None:
             self.load_schema()
-        return [col.get('title') for col in self._readonly_columns] if self._readonly_columns else []
+        
+        readonly = []
+        if self._columns_by_title and self._column_types_by_title:
+            for title, col_info in self._columns_by_title.items():
+                column_type = self._column_types_by_title.get(title)
+                if column_type and column_type.is_read_only():
+                    readonly.append(title)
+        return readonly
     
     @property
     def all_fields(self) -> List[str]:
@@ -574,7 +626,10 @@ class NocoDBSchema:
         """
         if self._columns_by_title is None:
             self.load_schema()
-        return list(self._columns_by_title.keys()) if self._columns_by_title else []
+        if self._columns_by_title:
+            # Ensure we only return string keys
+            return [str(key) for key in self._columns_by_title.keys() if key is not None]
+        return []
     
     def __str__(self) -> str:
         """String representation of the schema"""
