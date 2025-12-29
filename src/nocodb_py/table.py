@@ -575,13 +575,13 @@ class NocoDBTable:
         if invalid_columns:
             raise ValueError(f"Invalid column names: {invalid_columns}. Valid columns are: {column_titles}")
 
-    def _filter_columns(self, record: Dict, mode: str = "read_only") -> Dict:
+    def _filter_columns(self, record: Dict, mode: str = "writable") -> Dict:
         """
         Filter columns from the record based on the specified mode.
         
         Args:
             record (Dict): The record to filter
-            mode (str): Filter mode - "read_only" (default) or "basic_only"
+            mode (str): Filter mode - "writable" (default) or "basic_only"
             
         Returns:
             Dict: The filtered record with only allowed columns
@@ -589,17 +589,17 @@ class NocoDBTable:
         Raises:
             ValueError: If an invalid mode is specified
         """
-        if mode not in ["read_only", "basic_only"]:
-            raise ValueError(f"Invalid filter mode: {mode}. Must be 'read_only' or 'basic_only'")
+        if mode not in ["writable", "basic_only"]:
+            raise ValueError(f"Invalid filter mode: {mode}. Must be 'writable' or 'basic_only'")
         
-        if mode == "read_only":
-            return self._filter_read_only_columns(record)
+        if mode == "writable":
+            return self._filter_writable_columns(record)
         else:
             return self._filter_basic_columns(record)
     
-    def _filter_read_only_columns(self, record: Dict) -> Dict:
+    def _filter_writable_columns(self, record: Dict) -> Dict:
         """
-        Filter out read-only columns from the record.
+        Filter out read-only columns from the record, keeping only writable columns.
         
         Args:
             record (Dict): The record to filter
@@ -684,7 +684,7 @@ class NocoDBTable:
         self._validate_column_names(record_data)
         
         # Filter out read-only columns
-        return self._filter_columns(record_data, mode="read_only")
+        return self._filter_columns(record_data, mode="writable")
     
     def _process_record_for_update(self, record: Union[Dict, NocoDBRecord]) -> Tuple[Dict, int]:
         """
@@ -722,7 +722,7 @@ class NocoDBTable:
         self._validate_column_names(record_without_id)
         
         # Filter out read-only columns (but keep "Id" for identification)
-        filtered_record = self._filter_columns(record_data, mode="read_only")
+        filtered_record = self._filter_columns(record_data, mode="writable")
         
         # Ensure "Id" is preserved even if it's a read-only column
         if "Id" in record_data and "Id" not in filtered_record:
