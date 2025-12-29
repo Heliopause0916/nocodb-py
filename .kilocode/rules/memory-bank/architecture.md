@@ -41,6 +41,18 @@ graph TD
 - [`src/nocodb_py/utils.py`](../../../src/nocodb_py/utils.py) - 工具函数，包含时间转换、缓存管理等实用功能
 - [`src/nocodb_py/variable.py`](../../../src/nocodb_py/variable.py) - 配置变量
 
+### 验证器系统模块
+- **核心组件**：
+  - `ValidationResult`：验证结果容器，包含验证状态、错误信息和转换值
+  - `ValidationLevel`：验证级别枚举（STRUCTURAL和FULL）
+  - `Validator`：验证器基类，定义统一接口
+  - `SingleLineTextValidator`：单行文本验证器（已实现）
+- **注册系统**：
+  - `VALIDATOR_REGISTRY`：验证器注册表，映射列类型到验证器类
+  - `register_validator`：装饰器函数，用于注册验证器
+  - `get_validator`：获取验证器实例的工厂函数
+  - `validate_value`：全局验证函数，提供统一的验证接口
+
 ### 入口点
 - [`src/nocodb_py/__init__.py`](../../../src/nocodb_py/__init__.py) - 包初始化，导出核心类
 
@@ -57,6 +69,13 @@ graph TD
 - 云实例：使用工作区ID构建API路径前缀
 - 统一使用 `/api/v1` 和 `/api/v2` 端点
 - V2 API路径结构：`/api/v2/meta/{resource}`
+
+### 验证器系统架构
+- **装饰器注册模式**：使用`@register_validator`装饰器注册列类型验证器
+- **多级验证**：支持STRUCTURAL（结构验证）和FULL（完整验证）两个级别
+- **类型安全**：基于NocoDBColumnType枚举实现类型安全验证
+- **只读列处理**：自动识别并拒绝只读列的修改操作
+- **统一接口**：所有验证器实现统一的validate、convert、normalize方法
 
 ### 错误处理策略
 - 使用requests库的异常处理
@@ -88,9 +107,14 @@ graph TD
 ### 策略模式
 - 不同的部署模式（自托管 vs 云实例）使用不同的API路径策略
 - 缓存策略可配置TTL
+- 验证器系统支持不同的验证级别策略
 
 ### 工厂模式
 - 通过客户端方法创建工作区、项目、表格对象
+- 验证器系统使用工厂模式创建验证器实例
+
+### 装饰器模式
+- 验证器注册系统使用装饰器模式，简化验证器注册过程
 
 ### 拷贝与序列化
 - 核心类实现`__copy__`、`__deepcopy__`、`__getstate__`、`__setstate__`方法
@@ -129,6 +153,30 @@ sequenceDiagram
         Client->>Cache: 更新缓存
     end
     Client-->>User: 返回结果
+```
+
+### 验证器系统架构
+```mermaid
+graph TD
+    A[验证请求] --> B[验证器注册表]
+    B --> C[获取验证器]
+    C --> D[执行验证]
+    D --> E[结构验证]
+    D --> F[完整验证]
+    E --> G[类型检查]
+    E --> H[格式验证]
+    F --> I[上下文检查]
+    F --> J[约束验证]
+    G --> K[验证结果]
+    H --> K
+    I --> K
+    J --> K
+    K --> L[返回结果]
+    
+    M[只读列检查] --> N[拒绝修改]
+    M --> O[继续验证]
+    
+    A --> M
 ```
 
 ## 组件关系
