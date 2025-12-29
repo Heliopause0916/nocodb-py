@@ -524,13 +524,12 @@ class NocoDBSchema:
                             # Skip columns with unknown types
                             continue
         else:
-            # Offline state: build schema from offline columns
-            self._build_offline_schema()
+            # Offline state: reset column ID mapping
+            self._reset_column_id_mapping()
     
-    def _build_offline_schema(self) -> None:
-        """Build schema indexes from offline column definitions"""
-        # For offline schema, we only need to ensure _column_types_by_title is populated
-        # _column_types_by_id remains None in offline state
+    def _reset_column_id_mapping(self) -> None:
+        """Reset column ID mapping for offline schema state"""
+        # For offline schema, column ID mapping should be None since we don't have column IDs
         self._column_types_by_id = None
     
     def _rebuild_column_id_mapping(self, table_columns_by_title: Dict[Optional[str], Dict]) -> None:
