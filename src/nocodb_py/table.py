@@ -743,8 +743,8 @@ class NocoDBTable:
             raise ValueError("Record ID is required for update")
         try:
             record_id_int = int(record_id)
-        except (TypeError, ValueError):
-            raise ValueError(f"Record ID must be an integer, got {type(record_id)}")
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Record ID must be an integer, got {type(record_id)}") from exc
         
         # Filter out non-basic columns (basic_only mode is the default, but keep "Id" for identification)
         # Note: _validate_column_names is not called here as _filter_columns already handles invalid column names
