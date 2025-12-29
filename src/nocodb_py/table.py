@@ -270,7 +270,7 @@ class NocoDBTable:
         table_info = self.get_full_info(force_refresh=force_refresh)
         return table_info.get("description")
 
-    def get_columns_full_info(self, force_refresh: bool = False) -> List:
+    def get_columns_full_info(self, force_refresh: bool = False) -> List[Dict]:
         """
         Get the full column info for the table
         
@@ -284,7 +284,7 @@ class NocoDBTable:
         return full_info.get("columns", [])
 
     def list_columns(self, force_refresh: bool = False,
-                    full_info: bool = False, convert_time: bool = False) -> List:
+                    full_info: bool = False, convert_time: bool = False) -> List[Dict]:
         """
         List the column names for the table
         
@@ -658,7 +658,7 @@ class NocoDBTable:
         columns_info = self.get_columns_full_info()
         
         # Get column titles that are basic (writable, simple structure)
-        basic_titles = []
+        basic_titles :List[str] = []
         for col in columns_info:
             # Get column type and check if it's basic
             col_type_str = col.get('uidt', '')
@@ -672,7 +672,7 @@ class NocoDBTable:
                 continue
         
         # Filter out non-basic columns and collect filtered keys
-        filtered_record = {}
+        filtered_record :Dict[str, Any] = {}
         filtered_keys = []
         for key, value in record.items():
             if key in basic_titles:
