@@ -533,6 +533,21 @@ class NocoDBSchema:
         # _column_types_by_id remains None in offline state
         self._column_types_by_id = None
     
+    def _rebuild_column_id_mapping(self, table_columns_by_title: Dict[Optional[str], Dict]) -> None:
+        """
+        Rebuild column ID mapping after schema synchronization
+        
+        Args:
+            table_columns_by_title: Mapping of column titles to column info from table
+        """
+        self._column_types_by_id = {}
+        
+        for title, column_type in self._column_types_by_title.items():
+            if title and title in table_columns_by_title:
+                column_id = table_columns_by_title[title].get('id')
+                if column_id:
+                    self._column_types_by_id[column_id] = column_type
+    
     def _sync_with_table(self) -> None:
         """
         Synchronize offline schema with table schema
@@ -581,8 +596,8 @@ class NocoDBSchema:
                 table_type = NocoDBColumnType.from_string(table_col.get('uidt', ''))
                 self._column_types_by_title[title] = table_type
         
-        # Rebuild schema after synchronization
-        self._build_offline_schema()
+        # Rebuild column ID mapping after synchronization
+        self._rebuild_column_id_mapping(table_columns_by_title)
     
     def add_column(self, title: str, column_type: NocoDBColumnType) -> None:
         """
