@@ -17,7 +17,7 @@ import threading
 from typing import Dict, List, Any, Optional, Callable, Union
 from typing import TYPE_CHECKING
 import requests
-from .utils import parse_utc_datetime, count_of_nocodb_data
+from .utils import parse_metadata_datetime, count_of_nocodb_data
 from .exceptions import MissingFieldError, ListRetrievalError
 from .variable import max_workspace_num, max_project_num
 if TYPE_CHECKING:
@@ -575,8 +575,8 @@ class NocoDBClient:
             projects_list =[
                 {
                     **project,
-                    'created_at': parse_utc_datetime(project.get('created_at', None)),
-                    'updated_at': parse_utc_datetime(project.get('updated_at', None))
+                    'created_at': parse_metadata_datetime(project.get('created_at', None)),
+                    'updated_at': parse_metadata_datetime(project.get('updated_at', None))
                 }
                 for project in projects_list
             ]

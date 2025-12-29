@@ -17,7 +17,7 @@ import threading
 from typing import Dict, List, Any, Optional, Union
 from enum import Enum
 import requests
-from .utils import parse_utc_datetime, count_of_nocodb_data
+from .utils import count_of_nocodb_data
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .table import NocoDBTable

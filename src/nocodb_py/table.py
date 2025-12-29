@@ -19,7 +19,7 @@ from typing import Dict, List, Any, Optional, Union, Callable, Tuple
 from typing import TYPE_CHECKING
 import requests
 from .exceptions import ResponseFormatError, MissingFieldError, DataTypeError, RecordNotFoundError
-from .utils import parse_utc_datetime, count_of_nocodb_data
+from .utils import parse_metadata_datetime, count_of_nocodb_data
 from .client import NocoDBClient
 from .project import NocoDBProject
 from .record import NocoDBRecord, NocoDBRecordSet
@@ -301,8 +301,8 @@ class NocoDBTable:
             columns_list = [
                 {
                     **col,
-                    'created_at': parse_utc_datetime(col.get('created_at', None)),
-                    'updated_at': parse_utc_datetime(col.get('updated_at', None)),
+                    'created_at': parse_metadata_datetime(col.get('created_at', None)),
+                    'updated_at': parse_metadata_datetime(col.get('updated_at', None)),
                 }
                 for col in columns_list
             ]

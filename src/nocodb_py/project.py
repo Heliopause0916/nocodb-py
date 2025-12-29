@@ -19,7 +19,7 @@ from typing import Dict, List, Any, Optional, Callable
 from typing import TYPE_CHECKING
 import requests
 from .exceptions import ListRetrievalError
-from .utils import parse_utc_datetime, count_of_nocodb_data
+from .utils import parse_metadata_datetime, count_of_nocodb_data
 from .client import NocoDBClient
 if TYPE_CHECKING:
     from .table import NocoDBTable
@@ -282,8 +282,8 @@ class NocoDBProject:
             tables_list = [
                 {
                     **table,
-                    'created_at': parse_utc_datetime(table.get('created_at', None)),
-                    'updated_at': parse_utc_datetime(table.get('updated_at', None))
+                    'created_at': parse_metadata_datetime(table.get('created_at', None)),
+                    'updated_at': parse_metadata_datetime(table.get('updated_at', None))
                 }
                 for table in tables_list
             ]
