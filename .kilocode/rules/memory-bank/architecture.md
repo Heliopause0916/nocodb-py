@@ -38,7 +38,7 @@ graph TD
 - [`src/nocodb_py/record.py`](../../../src/nocodb_py/record.py) - 记录管理类，包含记录对象和记录集合，遵循明确的设计规范
 - [`src/nocodb_py/validator.py`](../../../src/nocodb_py/validator.py) - 验证器框架，包含ValidationResult、ValidationLevel和基础验证器接口
 - [`src/nocodb_py/exceptions.py`](../../../src/nocodb_py/exceptions.py) - 异常处理模块，包含记录操作相关异常
-- [`src/nocodb_py/utils.py`](../../../src/nocodb_py/utils.py) - 工具函数
+- [`src/nocodb_py/utils.py`](../../../src/nocodb_py/utils.py) - 工具函数，包含时间转换、缓存管理等实用功能
 - [`src/nocodb_py/variable.py`](../../../src/nocodb_py/variable.py) - 配置变量
 
 ### 入口点
@@ -165,6 +165,7 @@ sequenceDiagram
   - 表结构支持（NocoDBSchema）
   - 验证器框架（ValidationResult、ValidationLevel、基础验证器接口）
   - 单行文本验证器（SingleLineTextValidator）
+  - 时间转换系统（元数据和记录数据的时间格式解析和转换）
   
 - **待实现功能**：
   - 项目管理CRUD（获取、更新、删除）
