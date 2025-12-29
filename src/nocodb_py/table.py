@@ -18,21 +18,13 @@ import warnings
 from typing import Dict, List, Any, Optional, Union, Callable, Tuple
 from typing import TYPE_CHECKING
 import requests
+from .exceptions import ResponseFormatError, MissingFieldError, DataTypeError, RecordNotFoundError
 from .utils import parse_utc_datetime, count_of_nocodb_data
 from .client import NocoDBClient
 from .project import NocoDBProject
 from .record import NocoDBRecord, NocoDBRecordSet
 if TYPE_CHECKING:
     from .column import NocoDBColumn, NocoDBSchema
-
-class RecordNotFoundError(Exception):
-    """Exception raised when a record is not found in the table."""
-    
-    def __init__(self, table_id: str, record_id: int, original_error: Exception):
-        self.table_id = table_id
-        self.record_id = record_id
-        self.original_error = original_error
-        super().__init__(f"Record with ID {record_id} not found in table {table_id}")
 
 # pylint: disable=too-many-instance-attributes
 class NocoDBTable:
@@ -496,14 +488,26 @@ class NocoDBTable:
         
         # Validate response format
         if not isinstance(response, dict):
-            raise ValueError(f"Invalid API response format: expected dict, got {type(response)}")
+            raise ResponseFormatError(
+                f"Invalid API response format: expected dict, got {type(response)}",
+                api_endpoint=f"/api/v2/tables/{self._table_id}/records/count",
+                expected_format="JSON object"
+            )
             
         count = response.get("count")
         if count is None:
-            raise ValueError("Missing 'count' field in API response")
+            raise MissingFieldError(
+                "Missing 'count' field in API response",
+                api_endpoint=f"/api/v2/tables/{self._table_id}/records/count",
+                expected_format="JSON object with 'count' field"
+            )
             
         if not isinstance(count, (int, float)):
-            raise ValueError(f"Invalid count type: expected number, got {type(count)}")
+            raise DataTypeError(
+                f"Invalid count type: expected number, got {type(count)}",
+                api_endpoint=f"/api/v2/tables/{self._table_id}/records/count",
+                expected_format="Numeric value for 'count' field"
+            )
             
         return int(count)
 
@@ -814,7 +818,11 @@ class NocoDBTable:
         # Create and return NocoDBRecord object
         record_id = response.get("Id")
         if record_id is None:
-            raise ValueError("API response does not contain record ID")
+            raise MissingFieldError(
+                "API response does not contain record ID",
+                api_endpoint=f"/api/v2/tables/{self._table_id}/records",
+                expected_format="JSON object with 'Id' field"
+            )
             
         if isinstance(record, NocoDBRecord):
             # Attach the existing record to the table
@@ -863,7 +871,11 @@ class NocoDBTable:
         for i, record_response in enumerate(response):
             record_id = record_response.get("Id")
             if record_id is None:
-                raise ValueError("API response does not contain record ID")
+                raise MissingFieldError(
+                    "API response does not contain record ID",
+                    api_endpoint=f"/api/v2/tables/{self._table_id}/records",
+                    expected_format="JSON object with 'Id' field"
+                )
                 
             if original_records[i] is not None:
                 # Attach the existing record to the table

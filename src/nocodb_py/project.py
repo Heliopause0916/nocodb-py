@@ -18,6 +18,7 @@ import copy
 from typing import Dict, List, Any, Optional, Callable
 from typing import TYPE_CHECKING
 import requests
+from .exceptions import ListRetrievalError
 from .utils import parse_utc_datetime, count_of_nocodb_data
 from .client import NocoDBClient
 if TYPE_CHECKING:
@@ -313,7 +314,11 @@ class NocoDBProject:
         """
         tables = self.list_tables(force_refresh=force_refresh)
         if not tables:
-            raise ValueError("Failed to get table list")
+            raise ListRetrievalError(
+                "Failed to get table list",
+                api_endpoint=f"/api/v2/meta/bases/{self._project_id}/tables",
+                expected_format="List of table objects"
+            )
             
         for table in tables:
             if table.get("id") == table_id:

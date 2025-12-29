@@ -18,6 +18,7 @@ from typing import Dict, List, Any, Optional, Callable, Union
 from typing import TYPE_CHECKING
 import requests
 from .utils import parse_utc_datetime, count_of_nocodb_data
+from .exceptions import MissingFieldError, ListRetrievalError
 from .variable import max_workspace_num, max_project_num
 if TYPE_CHECKING:
     from .project import NocoDBProject
@@ -651,7 +652,11 @@ class NocoDBClient:
         
         projects = self.list_projects(force_refresh=force_refresh)
         if projects is None:
-            raise ValueError("Failed to get project list")
+            raise ListRetrievalError(
+                "Failed to get project list",
+                api_endpoint="/api/v2/meta/bases/",
+                expected_format="List of project objects"
+            )
             
         for project in projects:
             if project.get("id") == project_id:
@@ -683,7 +688,11 @@ class NocoDBClient:
             
         workspaces = self.list_workspaces(force_refresh=force_refresh)
         if workspaces is None:
-            raise ValueError("Failed to get workspace list")
+            raise ListRetrievalError(
+                "Failed to get workspace list",
+                api_endpoint="/api/v2/meta/workspaces/",
+                expected_format="List of workspace objects"
+            )
             
         for workspace in workspaces:
             if workspace.get("id") == workspace_id:
@@ -735,7 +744,11 @@ class NocoDBClient:
         if return_type == 'object':
             project_id = response.get('id')
             if project_id is None:
-                raise ValueError("Project ID not included in response")
+                raise MissingFieldError(
+                    "Project ID not included in response",
+                    api_endpoint="/api/v2/meta/bases/",
+                    expected_format="JSON object with 'id' field"
+                )
             # pylint: disable=import-outside-toplevel
             from .project import NocoDBProject
             project_obj = NocoDBProject(self, project_id,
