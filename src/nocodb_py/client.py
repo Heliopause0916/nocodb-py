@@ -15,7 +15,7 @@ This module provides a client class to interact with NocoDB API
 import time
 import threading
 import copy
-from typing import Dict, List, Any, Optional, Callable, Union
+from typing import Dict, List, Any, Optional, Callable, Union, Literal
 from typing import TYPE_CHECKING
 import requests
 from .utils import parse_metadata_datetime, count_of_nocodb_data
@@ -715,7 +715,7 @@ class NocoDBClient:
         return "/api/v2/meta"
 
     def create_project(self, title: str, description: Optional[str] = None,
-                      return_type: str = 'object') -> Union[Dict, 'NocoDBProject']:
+                      return_type: Literal["object", "json"] = 'object') -> Union[Dict, 'NocoDBProject']:
         """
         Create a new NocoDB project
         
@@ -886,7 +886,7 @@ class NocoDBClient:
                       title: Optional[str] = None,
                       order: Optional[int] = None,
                       meta: Optional[Dict] = None,
-                      return_type: str = 'json') -> Union[Dict, 'NocoDBProject']:
+                      return_type: Literal["object", "json"] = 'json') -> Union[Dict, 'NocoDBProject']:
         """
         Update a project, supports project ID string or NocoDBProject object
         

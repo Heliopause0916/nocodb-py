@@ -15,7 +15,7 @@ import time
 import threading
 import copy
 import warnings
-from typing import Dict, List, Any, Optional, Union, Callable, Tuple
+from typing import Dict, List, Any, Optional, Union, Callable, Tuple, Literal
 from typing import TYPE_CHECKING
 import requests
 from .exceptions import ResponseFormatError, MissingFieldError, DataTypeError, RecordNotFoundError
@@ -426,7 +426,7 @@ class NocoDBTable:
             self._schema_cache = None
             self._schema_timestamp = 0
 
-    def list_records(self, return_type: str = "object") -> Union[NocoDBRecordSet, List[Dict]]:
+    def list_records(self, return_type: Literal["object", "json"] = "object") -> Union[NocoDBRecordSet, List[Dict]]:
         """
         List all records from the table.
         
@@ -512,7 +512,7 @@ class NocoDBTable:
             
         return int(count)
 
-    def get_record(self, record_id:int, return_type: str = "object") -> Union[NocoDBRecord, Dict]:
+    def get_record(self, record_id:int, return_type: Literal["object", "json"] = "object") -> Union[NocoDBRecord, Dict]:
         """
         Get a single record from the table by its ID.
         
@@ -581,7 +581,7 @@ class NocoDBTable:
         if invalid_columns:
             raise ValueError(f"Invalid column names: {invalid_columns}. Valid columns are: {column_titles}")
 
-    def _filter_columns(self, record: Dict, mode: str = "basic_only") -> Dict:
+    def _filter_columns(self, record: Dict, mode: Literal["basic_only", "writable"] = "basic_only") -> Dict:
         """
         Filter columns from the record based on the specified mode.
         
@@ -1069,7 +1069,7 @@ class NocoDBTable:
     
     # Backward compatibility methods - these wrap the new separated methods
     def create_records(self, records: Union[Dict, NocoDBRecord, List[Dict], List[NocoDBRecord]],
-                      return_type: str = "object") -> Union[NocoDBRecord, List[NocoDBRecord], Dict, List[Dict]]:
+                      return_type: Literal["object", "json"] = "object") -> Union[NocoDBRecord, List[NocoDBRecord], Dict, List[Dict]]:
         """
         Create one or more records in the table (backward compatibility wrapper).
         
@@ -1145,7 +1145,7 @@ class NocoDBTable:
             return result
     
     def update_records(self, records: Union[Dict, NocoDBRecord, List[Dict], List[NocoDBRecord]],
-                      return_type: str = "object") -> Union[NocoDBRecord, List[NocoDBRecord], Dict, List[Dict]]:
+                      return_type: Literal["object", "json"] = "object") -> Union[NocoDBRecord, List[NocoDBRecord], Dict, List[Dict]]:
         """
         Update one or more records in the table (backward compatibility wrapper).
         
@@ -1230,7 +1230,7 @@ class NocoDBTable:
             return result
     
     def delete_records(self, records: Union[Dict, NocoDBRecord, List[Dict], List[NocoDBRecord]],
-                      return_type: str = "object") -> Union[Dict, List[Dict]]:
+                      return_type: Literal["object", "json"] = "object") -> Union[Dict, List[Dict]]:
         """
         Delete one or more records from the table (backward compatibility wrapper).
         
