@@ -1,7 +1,7 @@
 # NocoDB Python SDK 系统架构
 
 ## 系统架构概述
-NocoDB Python SDK 采用分层架构设计，包含四个核心类，按照工作区→项目→表格的层次结构组织。系统支持自托管和云实例两种部署模式，内置智能缓存机制以提高性能。
+NocoDB Python SDK 采用分层架构设计，包含七个核心类，按照工作区→项目→表格→记录的层次结构组织。系统支持自托管和云实例两种部署模式，内置智能缓存机制以提高性能，并实现了完整的记录操作功能和验证器框架。
 
 ## 核心组件架构
 
@@ -33,9 +33,11 @@ graph TD
 - [`src/nocodb_py/client.py`](../../../src/nocodb_py/client.py) - 主客户端类，处理基础API调用和缓存
 - [`src/nocodb_py/workspace.py`](../../../src/nocodb_py/workspace.py) - 工作区管理类（云实例专用）
 - [`src/nocodb_py/project.py`](../../../src/nocodb_py/project.py) - 项目管理类
-- [`src/nocodb_py/table.py`](../../../src/nocodb_py/table.py) - 表格管理类
+- [`src/nocodb_py/table.py`](../../../src/nocodb_py/table.py) - 表格管理类，包含完整的记录CRUD操作
 - [`src/nocodb_py/column.py`](../../../src/nocodb_py/column.py) - 列管理类，包含列类型验证和转换功能，以及NocoDBSchema类
 - [`src/nocodb_py/record.py`](../../../src/nocodb_py/record.py) - 记录管理类，包含记录对象和记录集合，遵循明确的设计规范
+- [`src/nocodb_py/validator.py`](../../../src/nocodb_py/validator.py) - 验证器框架，包含ValidationResult、ValidationLevel和基础验证器接口
+- [`src/nocodb_py/exceptions.py`](../../../src/nocodb_py/exceptions.py) - 异常处理模块，包含记录操作相关异常
 - [`src/nocodb_py/utils.py`](../../../src/nocodb_py/utils.py) - 工具函数
 - [`src/nocodb_py/variable.py`](../../../src/nocodb_py/variable.py) - 配置变量
 
@@ -67,7 +69,7 @@ graph TD
 - **表格管理**：表格元数据获取功能已实现，创建、更新和删除功能待实现
 - **视图管理**：网格视图、表单视图、画廊视图、看板视图（待实现）
 - **列操作**：列管理框架已创建，基础列信息获取功能已实现，完整CRUD操作待实现
-- **数据操作**：基础记录CRUD操作已实现（列表、获取、创建、更新、删除、统计记录），列类型验证系统和特殊类型处理待完善
+- **数据操作**：完整记录CRUD操作已实现（列表、获取、创建、更新、删除、统计记录），验证器框架已实现，需要完善具体列类型验证器
 - **过滤器和排序**：视图级别的条件过滤和排序规则（待实现）
 - **数据源管理**：多数据源支持和管理（待实现）
 - **用户和权限**：项目用户管理和角色分配（待实现）
@@ -154,18 +156,23 @@ sequenceDiagram
   - 项目创建（自托管和云实例）
   - 表格元数据获取
   - 列基本信息获取
-  - 基础记录CRUD操作（列表、获取、创建、更新、删除、统计记录）
+  - 完整记录CRUD操作（列表、获取、创建、更新、删除、统计记录）
   - 部署模式差异处理（自托管 vs 云实例）
   - 错误处理机制适配V2 API格式
   - 分层缓存机制支持V2 API
   - 拷贝和序列化支持
+  - 记录对象模型（NocoDBRecord和NocoDBRecordSet）
+  - 表结构支持（NocoDBSchema）
+  - 验证器框架（ValidationResult、ValidationLevel、基础验证器接口）
+  - 单行文本验证器（SingleLineTextValidator）
   
 - **待实现功能**：
   - 项目管理CRUD（获取、更新、删除）
   - 表格操作（创建、更新、删除）
   - 视图管理（网格、表单、画廊、看板视图）
   - 列操作（创建、更新、删除、主值设置）
-  - 数据操作（记录CRUD、链接记录、附件上传等） - **已有详细实施计划**
+  - 数据操作（链接记录、附件上传等高级功能）
+  - 20+种列类型验证器的完整实现
   - 过滤器、排序、Webhooks等高级功能
 
 ### 功能模块划分
