@@ -826,7 +826,7 @@ class NocoDBTable:
             
         if isinstance(record, NocoDBRecord):
             # Attach the existing record to the table
-            record._attach(self, record_id)
+            record._attach(table=self, record_id=record_id)
             return record
         else:
             # Create new record object
@@ -852,7 +852,7 @@ class NocoDBTable:
         """
         # Process each record
         filtered_records = []
-        original_records = []  # Keep track of original NocoDBRecord objects
+        original_records: List[Optional['NocoDBRecord']] = []  # Keep track of original NocoDBRecord objects
         for record in records:
             if isinstance(record, NocoDBRecord):
                 original_records.append(record)
@@ -876,11 +876,11 @@ class NocoDBTable:
                     api_endpoint=f"/api/v2/tables/{self._table_id}/records",
                     expected_format="JSON object with 'Id' field"
                 )
-                
-            if original_records[i] is not None:
+            tmp_original_record = original_records[i]
+            if tmp_original_record is not None:
                 # Attach the existing record to the table
-                original_records[i].attach(self, record_id)
-                result_records.append(original_records[i])
+                tmp_original_record._attach(table=self,record_id=record_id)
+                result_records.append(tmp_original_record)
             else:
                 # Create new record object
                 result_records.append(NocoDBRecord.from_api_format(record_response, table=self))
