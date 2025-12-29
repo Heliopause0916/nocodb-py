@@ -14,6 +14,7 @@ NocoDB Table for Python
 import time
 import threading
 import copy
+import warnings
 from typing import Dict, List, Any, Optional, Union, Callable, Tuple
 from typing import TYPE_CHECKING
 import requests
@@ -603,7 +604,7 @@ class NocoDBTable:
         
         Args:
             record (Dict): The record to filter
-            
+        
         Returns:
             Dict: The filtered record with only writable columns
         """
@@ -617,11 +618,24 @@ class NocoDBTable:
             if col.get('system') == 1 or col.get('readonly') == 1:
                 read_only_titles.append(col.get('title', ''))
         
-        # Filter out read-only columns
+        # Filter out read-only columns and collect filtered keys
         filtered_record = {}
+        filtered_keys = []
         for key, value in record.items():
             if key not in read_only_titles:
                 filtered_record[key] = value
+            else:
+                filtered_keys.append(key)
+        
+        # Issue warning if any columns were filtered
+        if filtered_keys:
+            warnings.warn(
+                f"Filtered out read-only columns: {filtered_keys}. "
+                f"These columns are marked as system or read-only and cannot be modified. "
+                f"Valid writable columns are: {list(filtered_record.keys())}",
+                UserWarning,
+                stacklevel=3
+            )
         
         return filtered_record
     
@@ -632,7 +646,7 @@ class NocoDBTable:
         
         Args:
             record (Dict): The record to filter
-            
+        
         Returns:
             Dict: The filtered record with only basic columns
         """
@@ -653,11 +667,24 @@ class NocoDBTable:
                 # If column type is unknown, skip it (not basic)
                 continue
         
-        # Filter out non-basic columns
+        # Filter out non-basic columns and collect filtered keys
         filtered_record = {}
+        filtered_keys = []
         for key, value in record.items():
             if key in basic_titles:
                 filtered_record[key] = value
+            else:
+                filtered_keys.append(key)
+        
+        # Issue warning if any columns were filtered
+        if filtered_keys:
+            warnings.warn(
+                f"Filtered out non-basic columns: {filtered_keys}. "
+                f"These columns are not basic types and cannot be modified through simple record operations. "
+                f"Valid basic columns are: {list(filtered_record.keys())}",
+                UserWarning,
+                stacklevel=3
+            )
         
         return filtered_record
 
@@ -680,10 +707,8 @@ class NocoDBTable:
         else:
             record_data = record
             
-        # Validate column names
-        self._validate_column_names(record_data)
-        
         # Filter out non-basic columns (basic_only mode is the default)
+        # Note: _validate_column_names is not called here as _filter_columns already handles invalid column names
         return self._filter_columns(record_data, mode="basic_only")
     
     def _process_record_for_update(self, record: Union[Dict, NocoDBRecord]) -> Tuple[Dict, int]:
@@ -717,11 +742,8 @@ class NocoDBTable:
         except (TypeError, ValueError):
             raise ValueError(f"Record ID must be an integer, got {type(record_id)}")
         
-        # Validate column names (excluding "Id" which is required for update)
-        record_without_id = {k: v for k, v in record_data.items() if k != "Id"}
-        self._validate_column_names(record_without_id)
-        
         # Filter out non-basic columns (basic_only mode is the default, but keep "Id" for identification)
+        # Note: _validate_column_names is not called here as _filter_columns already handles invalid column names
         filtered_record = self._filter_columns(record_data, mode="basic_only")
         
         # Ensure "Id" is preserved even if it's a read-only column
