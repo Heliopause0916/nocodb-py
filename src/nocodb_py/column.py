@@ -463,9 +463,11 @@ class NocoDBSchema:
         """Whether the schema is offline (detached)"""
         return not self.is_attached
     
-    def attach(self, table: 'NocoDBTable') -> None:
+    def _attach(self, table: 'NocoDBTable') -> None:
         """
         Attach offline schema to a table (one-time operation)
+        
+        This is a protected method that should only be called by load_schema.
         
         Args:
             table: Table object to attach to
@@ -492,7 +494,7 @@ class NocoDBSchema:
         """
         # Attach operation (one-time)
         if table is not None and self.is_detached:
-            self.attach(table)
+            self._attach(table)
             return
         
         if self.is_attached:
