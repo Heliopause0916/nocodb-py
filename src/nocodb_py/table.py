@@ -575,13 +575,13 @@ class NocoDBTable:
         if invalid_columns:
             raise ValueError(f"Invalid column names: {invalid_columns}. Valid columns are: {column_titles}")
 
-    def _filter_columns(self, record: Dict, mode: str = "writable") -> Dict:
+    def _filter_columns(self, record: Dict, mode: str = "basic_only") -> Dict:
         """
         Filter columns from the record based on the specified mode.
         
         Args:
             record (Dict): The record to filter
-            mode (str): Filter mode - "writable" (default) or "basic_only"
+            mode (str): Filter mode - "basic_only" (default) or "writable"
             
         Returns:
             Dict: The filtered record with only allowed columns
@@ -683,8 +683,8 @@ class NocoDBTable:
         # Validate column names
         self._validate_column_names(record_data)
         
-        # Filter out read-only columns
-        return self._filter_columns(record_data, mode="writable")
+        # Filter out non-basic columns (basic_only mode is the default)
+        return self._filter_columns(record_data, mode="basic_only")
     
     def _process_record_for_update(self, record: Union[Dict, NocoDBRecord]) -> Tuple[Dict, int]:
         """
@@ -721,8 +721,8 @@ class NocoDBTable:
         record_without_id = {k: v for k, v in record_data.items() if k != "Id"}
         self._validate_column_names(record_without_id)
         
-        # Filter out read-only columns (but keep "Id" for identification)
-        filtered_record = self._filter_columns(record_data, mode="writable")
+        # Filter out non-basic columns (basic_only mode is the default, but keep "Id" for identification)
+        filtered_record = self._filter_columns(record_data, mode="basic_only")
         
         # Ensure "Id" is preserved even if it's a read-only column
         if "Id" in record_data and "Id" not in filtered_record:
@@ -760,6 +760,10 @@ class NocoDBTable:
             
         Returns:
             NocoDBRecord: Created record as NocoDBRecord object
+            
+        Note:
+            By default, only basic columns (simple writable columns) are processed.
+            Non-basic columns (system columns, read-only columns, complex types) are automatically filtered out.
             
         Raises:
             ValueError: If column names in record are invalid
@@ -811,6 +815,10 @@ class NocoDBTable:
         Raises:
             ValueError: If column names in records are invalid
             requests.exceptions.RequestException: If the API request fails
+            
+        Note:
+            By default, only basic columns (simple writable columns) are processed.
+            Non-basic columns (system columns, read-only columns, complex types) are automatically filtered out.
         """
         # Process each record
         filtered_records = []
@@ -855,6 +863,11 @@ class NocoDBTable:
             
         Returns:
             NocoDBRecord: Updated record as NocoDBRecord object
+            
+        Note:
+            By default, only basic columns (simple writable columns) are processed.
+            Non-basic columns (system columns, read-only columns, complex types) are automatically filtered out.
+            The "Id" field is always preserved for record identification.
             
         Raises:
             ValueError: If column names in record are invalid or if "Id" field is missing
@@ -904,6 +917,11 @@ class NocoDBTable:
         Raises:
             ValueError: If column names in records are invalid or if "Id" field is missing
             requests.exceptions.RequestException: If the API request fails
+            
+        Note:
+            By default, only basic columns (simple writable columns) are processed.
+            Non-basic columns (system columns, read-only columns, complex types) are automatically filtered out.
+            The "Id" field is always preserved for record identification.
         """
         # Process each record
         filtered_records = []
@@ -1028,6 +1046,10 @@ class NocoDBTable:
             return_type (str): Return type - "object" for NocoDBRecord objects,
                               "json" for raw JSON dictionary data. Defaults to "object".
             
+        Note:
+            By default, only basic columns (simple writable columns) are processed.
+            Non-basic columns (system columns, read-only columns, complex types) are automatically filtered out.
+            
         Returns:
             Union[NocoDBRecord, List[NocoDBRecord], Dict, List[Dict]]: Created record(s) as NocoDBRecord objects or raw JSON data
             
@@ -1100,6 +1122,11 @@ class NocoDBTable:
                 Each record must contain an "Id" field to identify which record to update.
             return_type (str): Return type - "object" for NocoDBRecord objects,
                               "json" for raw JSON dictionary data. Defaults to "object".
+            
+        Note:
+            By default, only basic columns (simple writable columns) are processed.
+            Non-basic columns (system columns, read-only columns, complex types) are automatically filtered out.
+            The "Id" field is always preserved for record identification.
             
         Returns:
             Union[NocoDBRecord, List[NocoDBRecord], Dict, List[Dict]]: Updated record(s) as NocoDBRecord objects or raw JSON data
