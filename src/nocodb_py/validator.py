@@ -4,12 +4,22 @@ NocoDB Column Validator Module
 This module provides a flexible validation system for NocoDB column types.
 It supports multiple validation levels and uses a decorator-based registration system
 for maximum pluggability.
+
+The validator system uses a unified validation approach with direction-aware conversion:
+- "to_python": API data → Python internal object (with validation)
+- "to_api": Python object → API data format (validate format compatibility)
+
+Each validation returns a ValidationResult containing:
+- is_valid: Whether validation passed
+- error_message: Detailed error message if failed
+- converted_value: The normalized/converted value
+- value_type: The type of converted value ("python" or "api")
 """
 
 from dataclasses import dataclass
 from enum import Enum, auto
 from functools import wraps
-from typing import Any, Dict, Type, Optional, Union
+from typing import Any, Dict, Type, Optional, Union, Literal
 from .column import NocoDBColumnType, NocoDBColumn
 
 
@@ -22,10 +32,12 @@ class ValidationResult:
         is_valid: Whether the validation passed
         error_message: Detailed error message if validation failed
         converted_value: The normalized/converted value
+        value_type: The type of the converted value ("python" or "api")
     """
     is_valid: bool
     error_message: str = ""
     converted_value: Any = None
+    value_type: Literal["python", "api"] = "python"
 
 
 class ValidationLevel(Enum):
@@ -49,50 +61,34 @@ class Validator:
     """
     
     #pylint: disable=unused-argument
-    def validate(self, value: Any, column: NocoDBColumn, level: ValidationLevel) -> ValidationResult:
+    def validate(self,
+                value: Any,
+                column: NocoDBColumn,
+                level: ValidationLevel,
+                direction: Literal["to_python", "to_api"] = "to_python") -> ValidationResult:
         """
-        Validate a value for the column type.
+        Unified validation and conversion method for column types.
         
         Args:
-            value: The value to validate
+            value: The value to validate and convert
             column: The NocoDBColumn instance for contextual information
             level: The validation level to use
-            
+            direction: Conversion direction
+                - "to_python": API data → Python internal object (with validation)
+                - "to_api": Python object → API data format (validate format compatibility)
+                
         Returns:
-            ValidationResult: Detailed validation result
+            ValidationResult: Detailed validation result with converted value and value type
         """
         # Default implementation: always return valid result
+        # Map direction to value_type: "to_python" -> "python", "to_api" -> "api"
+        value_type = "python" if direction == "to_python" else "api"
         return ValidationResult(
             is_valid=True,
             error_message="",
-            converted_value=value
+            converted_value=value,
+            value_type=value_type
         )
-    
-    def convert(self, value: Any, column: NocoDBColumn) -> Any:
-        """
-        Convert the value to the expected format for the column type.
-        
-        Args:
-            value: The value to convert
-            column: The NocoDBColumn instance for contextual information
-            
-        Returns:
-            Any: The converted value
-        """
-        return value
-    
-    def normalize(self, value: Any, column: Optional[NocoDBColumn] = None) -> Any:
-        """
-        Normalize the value to the expected format for the column type.
-        
-        Args:
-            value: The value to normalize
-            column: Optional column context for normalization
-            
-        Returns:
-            Any: The normalized value
-        """
-        return value
 
 
 # Validator registry
@@ -123,25 +119,52 @@ class SingleLineTextValidator(Validator):
     Validates that the value is a string and optionally checks length constraints.
     """
     
-    def validate(self, value: Any, column: NocoDBColumn, level: ValidationLevel) -> ValidationResult:
+    def validate(self,
+                value: Any,
+                column: NocoDBColumn,
+                level: ValidationLevel,
+                direction: Literal["to_python", "to_api"] = "to_python") -> ValidationResult:
         """
-        Validate a value for SingleLineText column type.
+        Unified validation and conversion for SingleLineText column type.
         
         Args:
-            value: The value to validate
+            value: The value to validate and convert
             column: The NocoDBColumn instance for contextual information
             level: The validation level to use
-            
+            direction: Conversion direction
+                - "to_python": API data → Python internal object (with validation)
+                - "to_api": Python object → API data format (validate format compatibility)
+                
         Returns:
-            ValidationResult: Detailed validation result
+            ValidationResult: Detailed validation result with converted value and value type
         """
-        # Structural validation: check if value is a string
-        if not isinstance(value, str):
+        # Map direction to value_type: "to_python" -> "python", "to_api" -> "api"
+        value_type = "python" if direction == "to_python" else "api"
+        
+        # Handle None value
+        if value is None:
             return ValidationResult(
-                is_valid=False,
-                error_message=f"Expected string type, got {type(value).__name__}",
-                converted_value=None
+                is_valid=True,
+                error_message="",
+                converted_value=None,
+                value_type=value_type
             )
+        
+        # Convert value to string based on direction
+        if direction == "to_python":
+            # API → Python: ensure value is a string
+            if not isinstance(value, str):
+                return ValidationResult(
+                    is_valid=False,
+                    error_message=f"Expected string type for API data, got {type(value).__name__}",
+                    converted_value=None,
+                    value_type=value_type
+                )
+            converted_value = str(value)
+            
+        else:  # direction == "to_api"
+            # Python → API: convert any type to string
+            converted_value = str(value)
         
         # For FULL validation, could add additional checks (e.g., length constraints)
         if level == ValidationLevel.FULL:
@@ -149,43 +172,12 @@ class SingleLineTextValidator(Validator):
             # For now, just return valid result
             pass
         
-        # Convert and return valid result
-        converted_value = self.convert(value, column)
         return ValidationResult(
             is_valid=True,
             error_message="",
-            converted_value=converted_value
+            converted_value=converted_value,
+            value_type=value_type
         )
-    
-    def convert(self, value: Any, column: NocoDBColumn) -> Any:
-        """
-        Convert the value to a string.
-        
-        Args:
-            value: The value to convert
-            column: The NocoDBColumn instance for contextual information
-            
-        Returns:
-            str: The converted string value, or None if value is None
-        """
-        if value is None:
-            return None
-        return str(value)
-    
-    def normalize(self, value: Any, column: Optional[NocoDBColumn] = None) -> Any:
-        """
-        Normalize the value to a string.
-        
-        Args:
-            value: The value to normalize
-            column: Optional column context (not used for SingleLineText)
-            
-        Returns:
-            str: The normalized string value, or None if value is None
-        """
-        if value is None:
-            return None
-        return str(value)
 
 
 def get_validator(column_type: NocoDBColumnType) -> Validator:
@@ -212,7 +204,8 @@ def validate_value(
     value: Any,
     column_type: NocoDBColumnType,
     column: Optional[Any] = None,
-    level: ValidationLevel = ValidationLevel.STRUCTURAL
+    level: ValidationLevel = ValidationLevel.STRUCTURAL,
+    direction: Literal["to_python", "to_api"] = "to_python"
 ) -> ValidationResult:
     """
     Validate a value for a specific column type.
@@ -222,6 +215,9 @@ def validate_value(
         column_type: The NocoDBColumnType to validate against
         column: Optional column instance for contextual validation
         level: The validation level to use
+        direction: Conversion direction
+            - "to_python": API data → Python internal object (with validation)
+            - "to_api": Python object → API data format (validate format compatibility)
         
     Returns:
         ValidationResult: Detailed validation result with error message and converted value
@@ -231,7 +227,8 @@ def validate_value(
         return ValidationResult(
             is_valid=False,
             error_message="Cannot modify read-only column",
-            converted_value=None
+            converted_value=None,
+            value_type="python" if direction == "to_python" else "api"
         )
     
     try:
@@ -241,7 +238,8 @@ def validate_value(
         return ValidationResult(
             is_valid=True,
             error_message="",
-            converted_value=value
+            converted_value=value,
+            value_type="python" if direction == "to_python" else "api"
         )
     
     # Use the unified validate method
@@ -251,4 +249,4 @@ def validate_value(
         # Create a simple object with column_info attribute
         column = type('SimpleColumn', (), {'column_info': column_info})()
     
-    return validator.validate(value, column, level)
+    return validator.validate(value, column, level, direction)
