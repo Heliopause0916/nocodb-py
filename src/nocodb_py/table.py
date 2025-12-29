@@ -219,7 +219,7 @@ class NocoDBTable:
             force_refresh (bool): Whether to force a refresh of the table info
             
         Returns:
-            Dict: The full table info
+            Dict: The full table info (deep copy for safety)
         """
         with self._cache_lock:
             current_time = time.time()
@@ -228,7 +228,7 @@ class NocoDBTable:
                self._table_info_cache is not None and
                (cache_ttl is None or current_time - self._table_info_timestamp < cache_ttl)
                ):
-                return self._table_info_cache
+                return copy.deepcopy(self._table_info_cache)
 
             # pylint: disable=protected-access
             # Reason: NocoDBClient._get is intentionally accessible to NocoDB-related classes
@@ -236,7 +236,7 @@ class NocoDBTable:
                 f"{self.get_meta_v2_prefix()}"
             )
             self._table_info_timestamp = current_time
-            return self._table_info_cache
+            return copy.deepcopy(self._table_info_cache)
 
     def get_title(self, force_refresh: bool = False) -> str:
         """
@@ -278,10 +278,11 @@ class NocoDBTable:
             force_refresh (bool): Force refresh the cache
             
         Returns:
-            Dict: The full column info
+            Dict: The full column info (deep copy for safety)
         """
         full_info = self.get_full_info(force_refresh=force_refresh)
-        return full_info.get("columns", [])
+        columns = full_info.get("columns", [])
+        return copy.deepcopy(columns)
 
     def list_columns(self, force_refresh: bool = False,
                     full_info: bool = False, convert_time: bool = False) -> List[Dict]:
@@ -292,7 +293,7 @@ class NocoDBTable:
             force_refresh (bool): Force refresh the cache
             
         Returns:
-            List[str]: The column names
+            List[str]: The column names (deep copy for safety)
         """
         columns_data = self.get_columns_full_info(force_refresh=force_refresh)
         columns_list = columns_data
@@ -316,7 +317,7 @@ class NocoDBTable:
                 }
                 for col in columns_list
             ]
-        return columns_list
+        return copy.deepcopy(columns_list)
 
     def find_columns_by_title(self, title: str, match_func: Optional[Callable[[str, str], bool]] = None, force_refresh: bool = False) -> List[str]:
         """

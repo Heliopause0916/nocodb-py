@@ -14,6 +14,7 @@ This module provides a column class to interact with NocoDB column-specific API
 
 import time
 import threading
+import copy
 from typing import Dict, List, Any, Optional, Union
 from enum import Enum
 import requests
@@ -354,7 +355,7 @@ class NocoDBColumn:
             force_refresh (bool): Whether to force a refresh of the column info
             
         Returns:
-            Dict: The full column info
+            Dict: The full column info (deep copy for safety)
         """
         with self._cache_lock:
             current_time = time.time()
@@ -363,7 +364,7 @@ class NocoDBColumn:
                self._column_info_cache is not None and
                (cache_ttl is None or current_time - self._column_info_timestamp < cache_ttl)
                ):
-                return self._column_info_cache
+                return copy.deepcopy(self._column_info_cache)
 
             # pylint: disable=protected-access
             # Reason: NocoDBClient._get is intentionally accessible to NocoDB-related classes
@@ -371,7 +372,7 @@ class NocoDBColumn:
                 f"{self.get_meta_v2_prefix()}"
             )
             self._column_info_timestamp = current_time
-            return self._column_info_cache
+            return copy.deepcopy(self._column_info_cache)
 
     def get_column_type(self, force_refresh: bool = False) -> NocoDBColumnType:
         """

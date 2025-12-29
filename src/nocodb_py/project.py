@@ -206,7 +206,7 @@ class NocoDBProject:
         Get the full information of the NocoDB instance
         
         Returns:
-            Dict[str, Any]: The information of the NocoDB instance
+            Dict[str, Any]: The information of the NocoDB instance (deep copy for safety)
         """
         with self._cache_lock:
             current_time = time.time()
@@ -215,7 +215,7 @@ class NocoDBProject:
                self._project_info_cache is not None and
                (cache_ttl is None or current_time - self._project_info_timestamp < cache_ttl)
                ):
-                return self._project_info_cache
+                return copy.deepcopy(self._project_info_cache)
 
             # pylint: disable=protected-access
             # Reason: NocoDBClient._get is intentionally accessible to NocoDB-related classes
@@ -223,7 +223,7 @@ class NocoDBProject:
                 f"{self._client.get_meta_v2_prefix()}/bases/{self._project_id}"
                 )
             self._project_info_timestamp = current_time
-            return self._project_info_cache
+            return copy.deepcopy(self._project_info_cache)
 
     def get_tables_full_info(self, force_refresh: bool = False, include_m2m: bool = False) -> Dict:
         """
@@ -234,7 +234,7 @@ class NocoDBProject:
             include_m2m (bool): Whether to include many-to-many relationship tables
             
         Returns:
-            Dict[str, Any]: The information of all tables in the project
+            Dict[str, Any]: The information of all tables in the project (deep copy for safety)
         """
         with self._cache_lock:
             current_time = time.time()
@@ -251,7 +251,7 @@ class NocoDBProject:
               self._tables_cache is not None and
               (cache_ttl is None or current_time - self._tables_timestamp < cache_ttl)
               ):
-                return self._tables_cache
+                return copy.deepcopy(self._tables_cache)
             
             params = {
                 "includeM2M": "true" if include_m2m else "false"
@@ -262,7 +262,7 @@ class NocoDBProject:
                                                    params=params)
             self._tables_timestamp = current_time
             self._last_include_m2m = include_m2m  # Store the parameter value
-            return self._tables_cache
+            return copy.deepcopy(self._tables_cache)
 
     def list_tables(self, force_refresh: bool = False, include_m2m: bool = False,
                       full_info: bool = False, convert_time: bool = False) -> List:
@@ -274,6 +274,8 @@ class NocoDBProject:
             full_info (bool): Get full information of the tables
             convert_time (bool): Convert time fields to datetime objects
             
+        Returns:
+            List: Tables list (deep copy for safety)
         """
         tables_data = self.get_tables_full_info(force_refresh=force_refresh, include_m2m=include_m2m)
         tables_list: list[dict[str, Any]] = tables_data.get("list", [])
@@ -296,7 +298,7 @@ class NocoDBProject:
                 }
                 for table in tables_list
                 ]
-        return tables_list
+        return copy.deepcopy(tables_list)
 
     def get_table_title(self, table_id: str, force_refresh: bool = False) -> str:
         """

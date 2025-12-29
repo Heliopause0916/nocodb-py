@@ -14,6 +14,7 @@ This module provides a client class to interact with NocoDB API
 
 import time
 import threading
+import copy
 from typing import Dict, List, Any, Optional, Callable, Union
 from typing import TYPE_CHECKING
 import requests
@@ -168,7 +169,7 @@ class NocoDBClient:
         Get all workspaces with full information
         
         Returns:
-            dict: The workspaces information
+            dict: The workspaces information (deep copy for safety)
         """
         if not self.is_cloud():
             return None
@@ -179,11 +180,11 @@ class NocoDBClient:
                self._workspaces_cache is not None and
                (cache_ttl is None or current_time - self._workspaces_timeout < cache_ttl)
                ):
-                return self._workspaces_cache
+                return copy.deepcopy(self._workspaces_cache)
 
             self._workspaces_cache = self._get("/api/v1/workspaces")
             self._workspaces_timeout = current_time
-            return self._workspaces_cache
+            return copy.deepcopy(self._workspaces_cache)
 
     def count_workspaces(self, force_refresh: bool = False) -> Optional[int]:
         """
@@ -204,7 +205,7 @@ class NocoDBClient:
         List all workspaces
         
         Returns:
-            dict: The workspaces information
+            dict: The workspaces information (deep copy for safety)
         """
 
         workspaces_data = self.get_workspaces_full_info(force_refresh=force_refresh)
@@ -220,7 +221,7 @@ class NocoDBClient:
                 }
                 for workspace in workspaces_list
                 ]
-        return workspaces_list
+        return copy.deepcopy(workspaces_list)
 
     def get_workspace(self, workspace_id: str) -> 'NocoDBWorkspace':
         """
@@ -399,7 +400,7 @@ class NocoDBClient:
         Get NocoDB instance information from /api/v1/db/meta/nocodb/info
         
         Returns:
-            dict: JSON response from the NocoDB API
+            dict: JSON response from the NocoDB API (deep copy for safety)
        
         Raises:
             requests.exceptions.RequestException: If the request fails
@@ -411,11 +412,11 @@ class NocoDBClient:
                self._nocodb_info_cache is not None and
                (cache_ttl is None or current_time - self._nocodb_info_timestamp < cache_ttl)
                ):
-                return self._nocodb_info_cache
+                return copy.deepcopy(self._nocodb_info_cache)
 
             self._nocodb_info_cache = self._get("/api/v1/db/meta/nocodb/info")
             self._nocodb_info_timestamp = current_time
-            return self._nocodb_info_cache
+            return copy.deepcopy(self._nocodb_info_cache)
 
     def clear_nocodb_info_cache(self):
         """Clear cached server information"""
@@ -448,7 +449,7 @@ class NocoDBClient:
         Get current user information
         
         Returns:
-            dict: User information
+            dict: User information (deep copy for safety)
         """
         with self._cache_lock:
             current_time = time.time()
@@ -456,11 +457,11 @@ class NocoDBClient:
             if(not force_refresh and self._user_me_cache is not None and
                (cache_ttl is None or current_time - self._nocodb_info_timestamp < cache_ttl)
                ):
-                return self._user_me_cache
+                return copy.deepcopy(self._user_me_cache)
 
             self._user_me_cache = self._get("/api/v1/auth/user/me")
             self._user_me_timestamp = current_time
-            return self._user_me_cache
+            return copy.deepcopy(self._user_me_cache)
 
     def clear_user_me_cache(self):
         """Clear cached user information"""
@@ -503,7 +504,7 @@ class NocoDBClient:
         Get projects data
         
         Returns:
-            dict: Projects data
+            dict: Projects data (deep copy for safety)
         """
 
         with self._cache_lock:
@@ -512,11 +513,11 @@ class NocoDBClient:
             if(not force_refresh and self._projects_cache is not None and
                (cache_ttl is None or current_time - self._nocodb_info_timestamp < cache_ttl)
                ):
-                return self._projects_cache
+                return copy.deepcopy(self._projects_cache)
 
             self._projects_cache = self._get(f"{self.get_meta_v2_prefix()}/bases")
             self._projects_timeout = current_time
-            return self._projects_cache
+            return copy.deepcopy(self._projects_cache)
 
     def _validate_project_access(self) -> None:
         """
@@ -563,7 +564,7 @@ class NocoDBClient:
         List projects
         
         Returns:
-            dict: Projects list
+            dict: Projects list (deep copy for safety)
         """
         # Validate project access permissions
         self._validate_project_access()
@@ -589,7 +590,7 @@ class NocoDBClient:
                 }
                 for project in projects_list
                 ]
-        return projects_list
+        return copy.deepcopy(projects_list)
 
     list_bases = list_projects
 
