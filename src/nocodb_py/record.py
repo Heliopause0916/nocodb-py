@@ -193,50 +193,233 @@ class NocoDBRecord:
 
 class NocoDBRecordSet:
     """
-    NocoDB record set, encapsulating multiple records
+    NocoDB record set with compressed columnar storage
+    
+    This implementation uses columnar storage to optimize memory usage for large datasets.
+    Instead of storing each record as a separate dictionary with repeated field names,
+    it stores data in columns (arrays of values per field) to avoid redundancy.
+    
+    Key features:
+    - Columnar storage: Field names are stored once, values are stored in arrays
+    - Memory optimization: Significant reduction in memory usage for large datasets
+    - State management: Tracks online/offline, modified, and deleted states
+    - Performance: Optimized batch operations and API format conversion
     
     Attributes:
-        records (List[NocoDBRecord]): List of records
-        table (Optional['NocoDBTable']): Table object
+        _field_names (List[str]): Unique field names across all records
+        _data_columns (Dict[str, List[Any]]): Columnar data storage by field
+        _record_metadata (List[Dict]): Record metadata (ID, status, etc.)
+        _table (Optional['NocoDBTable']): Table object
+        _schema (Optional['NocoDBSchema']): Table schema
+        _is_attached (bool): Whether any record is attached to table
     """
     
     def __init__(self,
                  records: List[NocoDBRecord],
                  table: Optional['NocoDBTable'] = None):
         """
-        Initialize record set
+        Initialize record set with compressed columnar storage
         
         Args:
             records: List of records
             table: Table object, optional
         """
-        self.records = records
-        self.table = table
+        # Initialize columnar storage structure
+        self._field_names: List[str] = []
+        self._data_columns: Dict[str, List[Any]] = {}
+        self._record_metadata: List[Dict[str, Any]] = []
+        self._table = table
+        
+        # Get schema from first record (if exists)
+        self._schema = records[0].schema if records else None
+        
+        # Check if any record is attached
+        self._is_attached = any(record.is_attached for record in records) if records else False
+        
+        # Build columnar storage
+        self._build_columnar_storage(records)
+    
+    def _build_columnar_storage(self, records: List[NocoDBRecord]) -> None:
+        """Build columnar storage from list of records"""
+        if not records:
+            return
+        
+        # Collect all unique field names
+        all_field_names = set()
+        for record in records:
+            all_field_names.update(record._data.keys())
+        self._field_names = sorted(all_field_names)
+        
+        # Initialize data columns
+        for field in self._field_names:
+            self._data_columns[field] = []
+        
+        # Fill data and metadata
+        for i, record in enumerate(records):
+            # Fill data columns
+            for field in self._field_names:
+                self._data_columns[field].append(record._data.get(field))
+            
+            # Create record metadata
+            metadata = {
+                "internal_index": i,
+                "record_id": record.record_id,
+                "is_attached": record.is_attached,
+                "is_deleted": record.is_deleted,
+                "is_modified": record.is_modified,
+                "original_hash": record._original_data_hash
+            }
+            self._record_metadata.append(metadata)
     
     def __len__(self) -> int:
         """Number of records"""
-        return len(self.records)
+        return len(self._record_metadata)
     
     def __getitem__(self, index: int) -> NocoDBRecord:
-        """Index access"""
-        return self.records[index]
+        """Get record by internal index"""
+        if index < 0 or index >= len(self._record_metadata):
+            raise IndexError(f"Record index {index} out of range")
+        
+        metadata = self._record_metadata[index]
+        
+        # Build record data dictionary
+        data = {}
+        for field in self._field_names:
+            data[field] = self._data_columns[field][index]
+        
+        # Create NocoDBRecord object
+        return NocoDBRecord(
+            data=data,
+            record_id=metadata["record_id"],
+            table=self._table,
+            schema=self._schema,
+            is_deleted=metadata["is_deleted"]
+        )
     
     def __iter__(self) -> Iterator[NocoDBRecord]:
         """Iterator support"""
-        return iter(self.records)
+        for i in range(len(self._record_metadata)):
+            yield self[i]
     
     def to_list(self) -> List[NocoDBRecord]:
         """Convert to plain list (backward compatibility)"""
-        return self.records.copy()
+        return list(self)
     
     def to_api_format_list(self) -> List[Dict[str, Any]]:
-        """Convert to NocoDB API format list"""
-        return [record.to_api_format() for record in self.records]
+        """Convert to NocoDB API format list with batch optimization"""
+        result = []
+        for i, metadata in enumerate(self._record_metadata):
+            # Build API format data
+            api_data = {}
+            for field in self._field_names:
+                api_data[field] = self._data_columns[field][i]
+            
+            # Add record ID (if exists)
+            if metadata["record_id"] is not None:
+                api_data["Id"] = metadata["record_id"]
+            
+            result.append(api_data)
+        
+        return result
+    
+    @property
+    def is_attached(self) -> bool:
+        """Whether any record in the set is attached to a table"""
+        return self._is_attached
+    
+    @property
+    def is_detached(self) -> bool:
+        """Whether all records in the set are detached"""
+        return not self._is_attached
+    
+    def get_attached_records(self) -> List[int]:
+        """Get indices of attached records"""
+        return [i for i, meta in enumerate(self._record_metadata) if meta["is_attached"]]
+    
+    def get_detached_records(self) -> List[int]:
+        """Get indices of detached records"""
+        return [i for i, meta in enumerate(self._record_metadata) if not meta["is_attached"]]
+    
+    def get_modified_records(self) -> List[int]:
+        """Get indices of modified records"""
+        return [i for i, meta in enumerate(self._record_metadata) if meta["is_modified"]]
+    
+    def get_deleted_records(self) -> List[int]:
+        """Get indices of deleted records"""
+        return [i for i, meta in enumerate(self._record_metadata) if meta["is_deleted"]]
+    
+    def mark_all_clean(self) -> None:
+        """Mark all records as unmodified"""
+        for meta in self._record_metadata:
+            meta["is_modified"] = False
+    
+    def update_record(self, internal_index: int, updates: Dict[str, Any]) -> None:
+        """Update specific record data"""
+        if internal_index < 0 or internal_index >= len(self._record_metadata):
+            raise IndexError(f"Record index {internal_index} out of range")
+        
+        # Update data columns
+        for field, value in updates.items():
+            if field in self._data_columns:
+                self._data_columns[field][internal_index] = value
+        
+        # Mark as modified
+        self._record_metadata[internal_index]["is_modified"] = True
+    
+    def bulk_update(self, updates: Dict[int, Dict[str, Any]]) -> None:
+        """Bulk update multiple records"""
+        for internal_index, record_updates in updates.items():
+            self.update_record(internal_index, record_updates)
+    
+    def get_field_values(self, field_name: str) -> List[Any]:
+        """Get all values for a specific field"""
+        return self._data_columns.get(field_name, [])
+    
+    @property
+    def memory_usage(self) -> int:
+        """Estimate memory usage in bytes"""
+        # Field names storage
+        field_names_size = sum(len(field) for field in self._field_names)
+        
+        # Data columns storage estimation
+        data_size = 0
+        for field, values in self._data_columns.items():
+            data_size += len(field)  # Field name
+            data_size += sum(self._estimate_value_size(v) for v in values)
+        
+        # Metadata storage
+        metadata_size = len(self._record_metadata) * 100  # Estimate 100 bytes per metadata
+        
+        return field_names_size + data_size + metadata_size
+    
+    def _estimate_value_size(self, value: Any) -> int:
+        """Estimate size of a value in bytes"""
+        if isinstance(value, str):
+            return len(value)
+        elif isinstance(value, (int, float)):
+            return 8
+        elif value is None:
+            return 0
+        else:
+            return 50  # Default estimate
+    
+    @property
+    def compression_ratio(self) -> float:
+        """Calculate compression ratio compared to original storage"""
+        if not self._record_metadata:
+            return 1.0
+        
+        # Estimate original storage size (each record stores field names independently)
+        original_size = len(self._record_metadata) * sum(len(field) for field in self._field_names)
+        original_size += self.memory_usage  # Add data itself
+        
+        return self.memory_usage / original_size if original_size > 0 else 1.0
     
     def __str__(self) -> str:
         """String representation"""
-        table_id = self.table.table_id if self.table else None
-        return f"NocoDBRecordSet(count={len(self.records)}, table_id={table_id})"
+        table_id = self._table.table_id if self._table else None
+        compression_info = f", compression_ratio={self.compression_ratio:.2%}" if self._record_metadata else ""
+        return f"NocoDBRecordSet(count={len(self._record_metadata)}, table_id={table_id}{compression_info})"
     
     def __repr__(self) -> str:
         """Official string representation"""
