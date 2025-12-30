@@ -113,7 +113,7 @@ class SingleLineTextValidator(Validator):
             # For now, just return valid result
             pass
         
-        # Check for newline characters in SingleLineText (only for successful conversions)
+        # Check for newline characters in SingleLineText (only for successful conversions with non-None values)
         if result.is_valid and result.converted_value is not None:
             if '\n' in result.converted_value or '\r' in result.converted_value:
                 column_title = column.get_title() if column else 'unknown'
