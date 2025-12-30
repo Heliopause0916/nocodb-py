@@ -4,6 +4,7 @@ Numeric Column Validators
 This module contains validators for numeric column types:
 - Number: Integer and floating-point numbers
 - Decimal: High-precision decimal numbers
+- Percent: Percentage values (allows any numeric value, no range restrictions)
 """
 
 import warnings
@@ -214,6 +215,137 @@ class DecimalValidator(Validator):
         # For FULL validation, could add additional checks (e.g., precision constraints)
         if level == ValidationLevel.FULL and column:
             # In a real implementation, this could check decimal precision constraints
+            # For now, just return valid result
+            pass
+        
+        return ValidationResult(
+            is_valid=True,
+            error_message="",
+            converted_value=converted_value,
+            value_type=value_type
+        )
+
+
+@register_validator(NocoDBColumnType.PERCENT)
+class PercentValidator(Validator):
+    """
+    Validator for Percent column type.
+    
+    Validates that the value is a numeric type (int or float).
+    Does NOT restrict value range - allows negative numbers and values > 100.
+    Preserves original precision without rounding.
+    Supports None values as valid input.
+    
+    Boolean values are converted to semantic percent values:
+    - True → 100 (representing 100%)
+    - False → 0 (representing 0%)
+    
+    Note: NocoDB API accepts any numeric value for Percent columns, including:
+    - Integers (e.g., 50, 100, 150)
+    - Floats (e.g., 50.5, 100.25, -10.75)
+    - Negative numbers (e.g., -10, -50.5)
+    - Values outside 0-100 range (e.g., 150, 200.5)
+    
+    The frontend may display with 2 decimal places, but the backend stores
+    the full precision value. This validator preserves the original precision.
+    """
+    
+    def validate(self,
+                value: Any,
+                column: Optional[NocoDBColumn],
+                level: ValidationLevel = ValidationLevel.STRUCTURAL,
+                direction: Literal["to_python", "to_api"] = "to_python") -> ValidationResult:
+        """
+        Unified validation and conversion for Percent column type.
+        
+        Args:
+            value: The value to validate and convert
+            column: The NocoDBColumn instance for contextual information
+            level: The validation level to use
+            direction: Conversion direction
+                - "to_python": API data → Python internal object (with validation)
+                - "to_api": Python object → API data format (validate format compatibility)
+                
+        Returns:
+            ValidationResult: Detailed validation result with converted value and value type
+        """
+        # Map direction to value_type: "to_python" -> "python", "to_api" -> "api"
+        value_type = "python" if direction == "to_python" else "api"
+        
+        # Handle None value - Percent supports None
+        if value is None:
+            return ValidationResult(
+                is_valid=True,
+                error_message="",
+                converted_value=None,
+                value_type=value_type
+            )
+        
+        # Convert value based on direction
+        if direction == "to_python":
+            # API → Python: try to convert to float (preferred for Percent type)
+            if isinstance(value, bool):
+                # Handle boolean values with semantic mapping
+                converted_value = 100 if value else 0
+            elif isinstance(value, (int, float)):
+                # If already a numeric type, use as-is (preserve original precision)
+                converted_value = value
+            else:
+                # For non-numeric types, try conversion
+                try:
+                    converted_value = float(value)
+                    # Warn about conversion from non-numeric type
+                    column_title = column.get_title() if column else 'unknown'
+                    warnings.warn(
+                        f"Percent column '{column_title}' received non-numeric value {value} "
+                        f"that was converted to {converted_value}. "
+                        f"Consider providing numeric values directly.",
+                        UserWarning,
+                        stacklevel=2
+                    )
+                except (ValueError, TypeError) as e:
+                    return ValidationResult(
+                        is_valid=False,
+                        error_message=f"Failed to convert value to percent: {str(e)}",
+                        converted_value=None,
+                        value_type=value_type
+                    )
+            
+        elif direction == "to_api":
+            # Python → API: ensure value is numeric
+            if isinstance(value, bool):
+                # Handle boolean values with semantic mapping
+                converted_value = 100 if value else 0
+            elif not isinstance(value, (int, float)):
+                try:
+                    converted_value = float(value)
+                    # Warn about conversion from non-numeric type
+                    column_title = column.get_title() if column else 'unknown'
+                    warnings.warn(
+                        f"Percent column '{column_title}' received non-numeric value {value} "
+                        f"that was converted to {converted_value}. "
+                        f"Consider providing numeric values directly.",
+                        UserWarning,
+                        stacklevel=2
+                    )
+                except (ValueError, TypeError) as e:
+                    return ValidationResult(
+                        is_valid=False,
+                        error_message=f"Failed to convert value to percent: {str(e)}",
+                        converted_value=None,
+                        value_type=value_type
+                    )
+            else:
+                converted_value = value
+                
+        else:
+            # Invalid direction
+            raise ValueError(f"Invalid direction: {direction}. Must be 'to_python' or 'to_api'")
+        
+        # For FULL validation, could add additional checks (e.g., precision constraints)
+        # Note: We do NOT add range validation (0-100) as NocoDB accepts any numeric value
+        if level == ValidationLevel.FULL and column:
+            # In a real implementation, this could check column-specific constraints
             # For now, just return valid result
             pass
         

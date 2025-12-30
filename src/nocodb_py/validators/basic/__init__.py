@@ -9,7 +9,7 @@ This package contains validators for basic column types:
 """
 
 from .text import SingleLineTextValidator, LongTextValidator
-from .numeric import NumberValidator, DecimalValidator
+from .numeric import NumberValidator, DecimalValidator, PercentValidator
 from .checkbox import CheckboxValidator
 from .datetime import DateValidator, TimeValidator, DateTimeValidator, YearValidator
 
@@ -18,6 +18,7 @@ __all__ = [
     'LongTextValidator',
     'NumberValidator',
     'DecimalValidator',
+    'PercentValidator',
     'CheckboxValidator',
     'DateValidator',
     'TimeValidator',

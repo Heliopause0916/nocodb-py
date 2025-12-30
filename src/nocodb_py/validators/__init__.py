@@ -17,14 +17,18 @@ from .base import ValidationResult, ValidationLevel, Validator, register_validat
 
 # Import basic validators
 from .basic.text import SingleLineTextValidator, LongTextValidator
+from .basic.numeric import NumberValidator, DecimalValidator, PercentValidator
 
 __all__ = [
     'ValidationResult',
-    'ValidationLevel', 
+    'ValidationLevel',
     'Validator',
     'register_validator',
     'get_validator',
     'validate_value',
     'SingleLineTextValidator',
     'LongTextValidator',
+    'NumberValidator',
+    'DecimalValidator',
+    'PercentValidator',
 ]
