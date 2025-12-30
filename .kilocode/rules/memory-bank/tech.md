@@ -46,7 +46,11 @@ nocodb-py/
 │       ├── base.py         # 基础验证器类和注册系统
 │       └── basic/          # 基础类型验证器目录
 │           ├── __init__.py # 基础验证器包初始化
-│           └── text.py     # 文本类型验证器（单行文本、长文本）
+│           ├── text.py     # 文本类型验证器（单行文本、长文本）
+│           ├── checkbox.py # 复选框验证器
+│           ├── datetime.py # 日期时间验证器（日期、时间、日期时间、年份）
+│           ├── duration.py # 时长验证器
+│           └── numeric.py  # 数值验证器（数字、小数、百分比、评分）
 ├── tests/                  # 测试目录
 │   ├── test.py            # 主测试文件
 │   ├── test_api.py        # API测试
@@ -110,8 +114,18 @@ nocodb-py/
 
 #### 列类型验证系统（已完整实现并模块化重构）
 - **验证器框架**：ValidationResult、ValidationLevel、Validator基类已实现
-- **单行文本验证器**：SingleLineTextValidator已实现，支持验证级别和结果类型
+- **单行文本验证器**：SingleLineTextValidator已实现，支持验证级别和方向感知转换
 - **长文本验证器**：LongTextValidator已实现，支持多行文本验证
+- **复选框验证器**：CheckboxValidator已实现，支持布尔值和整数转换
+- **数字验证器**：NumberValidator已实现，支持整数和浮点数处理
+- **小数验证器**：DecimalValidator已实现，支持高精度小数
+- **百分比验证器**：PercentValidator已实现，支持任意数值范围
+- **评分验证器**：RatingValidator已实现，支持0-10范围验证
+- **日期验证器**：DateValidator已实现，支持YYYY-MM-DD格式
+- **时间验证器**：TimeValidator已实现，支持HH:mm:ss格式
+- **日期时间验证器**：DateTimeValidator已实现，支持ISO 8601格式
+- **年份验证器**：YearValidator已实现，支持1-9999范围验证
+- **时长验证器**：DurationValidator已实现，支持秒数和时间格式解析
 - **20+种列类型支持**：包括基础类型、选择类型、验证类型和特殊类型（待完善）
 - **验证器接口**：统一的验证和转换接口，支持类型安全的数据处理
 - **特殊类型处理**：附件、链接记录、只读字段、系统字段的智能处理

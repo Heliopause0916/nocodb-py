@@ -48,6 +48,16 @@ graph TD
   - `Validator`：验证器基类，定义统一接口
   - `SingleLineTextValidator`：单行文本验证器（已实现）
   - `LongTextValidator`：长文本验证器（已实现）
+  - `CheckboxValidator`：复选框验证器（已实现）
+  - `NumberValidator`：数字验证器（已实现）
+  - `DecimalValidator`：小数验证器（已实现）
+  - `PercentValidator`：百分比验证器（已实现）
+  - `RatingValidator`：评分验证器（已实现）
+  - `DateValidator`：日期验证器（已实现）
+  - `TimeValidator`：时间验证器（已实现）
+  - `DateTimeValidator`：日期时间验证器（已实现）
+  - `YearValidator`：年份验证器（已实现）
+  - `DurationValidator`：时长验证器（已实现）
 - **注册系统**：
   - `VALIDATOR_REGISTRY`：验证器注册表，映射列类型到验证器类
   - `register_validator`：装饰器函数，用于注册验证器
@@ -55,7 +65,7 @@ graph TD
   - `validate_value`：全局验证函数，提供统一的验证接口
 - **模块化架构**：
   - **基础模块**：`validators/base.py` - 包含核心验证器类和注册系统
-  - **基础类型验证器**：`validators/basic/` - 包含文本、数字、日期等基础类型验证器
+  - **基础类型验证器**：`validators/basic/` - 包含文本、数字、日期时间、复选框、时长、百分比、评分等基础类型验证器（已基本完成）
   - **选择类型验证器**：`validators/selection/` - 包含单选、多选等选择类型验证器
   - **验证类型验证器**：`validators/validation/` - 包含邮箱、URL等验证类型验证器
   - **特殊类型验证器**：`validators/special/` - 包含JSON、附件等特殊类型验证器
@@ -96,7 +106,7 @@ graph TD
 - **表格管理**：表格元数据获取功能已实现，创建、更新和删除功能待实现
 - **视图管理**：网格视图、表单视图、画廊视图、看板视图（待实现）
 - **列操作**：列管理框架已创建，基础列信息获取功能已实现，完整CRUD操作待实现
-- **数据操作**：完整记录CRUD操作已实现（列表、获取、创建、更新、删除、统计记录），验证器框架已实现，需要完善具体列类型验证器
+- **数据操作**：完整记录CRUD操作已实现（列表、获取、创建、更新、删除、统计记录），验证器框架已完整实现，基础类型验证器已基本完成，需要继续实现选择类型、验证类型和特殊类型验证器
 - **过滤器和排序**：视图级别的条件过滤和排序规则（待实现）
 - **数据源管理**：多数据源支持和管理（待实现）
 - **用户和权限**：项目用户管理和角色分配（待实现）
