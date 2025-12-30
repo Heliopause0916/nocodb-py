@@ -101,7 +101,7 @@ def register_validator(column_type: NocoDBColumnType):
     return decorator
 
 
-def get_validator(column_type: NocoDBColumnType) -> Validator:
+def get_validator(column_type: NocoDBColumnType) -> Optional[Validator]:
     """
     Get a validator instance for the specified column type.
     
@@ -109,13 +109,11 @@ def get_validator(column_type: NocoDBColumnType) -> Validator:
         column_type: The NocoDBColumnType to get a validator for
         
     Returns:
-        Validator: An instance of the appropriate validator class
-        
-    Raises:
-        ValueError: If no validator is registered for the column type
+        Optional[Validator]: An instance of the appropriate validator class,
+        or None if no validator is registered for the column type
     """
     if column_type not in VALIDATOR_REGISTRY:
-        raise ValueError(f"No validator registered for column type: {column_type}")
+        return None
     
     validator_class = VALIDATOR_REGISTRY[column_type]
     return validator_class()
@@ -152,14 +150,13 @@ def validate_value(
             value_type="python" if direction == "to_python" else "api"
         )
     
-    try:
-        validator = get_validator(column_type)
-    except ValueError:
-        # If no validator is registered, return a valid result with the original value
+    validator = get_validator(column_type)
+    if validator is None:
+        # If no validator is registered, return an invalid result
         return ValidationResult(
-            is_valid=True,
-            error_message="",
-            converted_value=value,
+            is_valid=False,
+            error_message=f"No validator registered for column type: {column_type}",
+            converted_value=None,
             value_type="python" if direction == "to_python" else "api"
         )
     

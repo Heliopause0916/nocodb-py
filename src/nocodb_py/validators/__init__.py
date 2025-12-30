@@ -12,11 +12,11 @@ Categories:
 - system: System types (ID, audit fields, computed fields)
 """
 
-# Use absolute imports to avoid Pylint issues
-from nocodb_py.validators.base import ValidationResult, ValidationLevel, Validator, register_validator, get_validator, validate_value
+# Use relative imports
+from .base import ValidationResult, ValidationLevel, Validator, register_validator, get_validator, validate_value
 
 # Import basic validators
-from nocodb_py.validators.basic.text import SingleLineTextValidator, LongTextValidator
+from .basic.text import SingleLineTextValidator, LongTextValidator
 
 __all__ = [
     'ValidationResult',
