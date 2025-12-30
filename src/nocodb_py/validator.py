@@ -28,7 +28,8 @@ from .validators import (
     get_validator,
     validate_value,
     SingleLineTextValidator,
-    LongTextValidator
+    LongTextValidator,
+    DurationValidator
 )
 
 # Re-export for backward compatibility
@@ -40,7 +41,8 @@ __all__ = [
     'get_validator',
     'validate_value',
     'SingleLineTextValidator',
-    'LongTextValidator'
+    'LongTextValidator',
+    'DurationValidator'
 ]
 
 

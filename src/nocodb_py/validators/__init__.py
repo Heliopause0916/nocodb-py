@@ -20,6 +20,7 @@ from .basic.text import SingleLineTextValidator, LongTextValidator
 from .basic.numeric import NumberValidator, DecimalValidator, PercentValidator, RatingValidator
 from .basic.checkbox import CheckboxValidator
 from .basic.datetime import DateValidator, TimeValidator, DateTimeValidator, YearValidator
+from .basic.duration import DurationValidator
 
 __all__ = [
     'ValidationResult',
@@ -39,4 +40,5 @@ __all__ = [
     'TimeValidator',
     'DateTimeValidator',
     'YearValidator',
+    'DurationValidator',
 ]
