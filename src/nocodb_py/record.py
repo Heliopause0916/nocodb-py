@@ -18,6 +18,42 @@ class NocoDBRecord:
     
     Supports two states: online (attached to table) and offline (local data organization).
     
+    === STATE SPECIFICATIONS ===
+    
+    Record Sources:
+        Records can only come from two sources:
+        1. API-returned records: Returned by get_record() or list_records() methods,
+           naturally in attached state with ID and table_id
+        2. Locally generated records: Created by users locally, not yet saved to table,
+           in detached state with record_id=None and table=None
+    
+    State Transitions:
+        - create_record() is the ONLY method that converts detached records to attached
+        - State is IRREVERSIBLE: once a record has an ID (attached), it can never
+          return to detached state
+        - State protection: Prevents illegal state transitions to ensure data consistency
+    
+    Copy Operations:
+        When using copy.copy() or copy.deepcopy():
+        - ID and table_id cannot be copied, copied record becomes detached
+        - System columns (Id, CreatedAt, UpdatedAt, etc.) cannot be copied
+        - Advanced columns (link, attachment, etc.) copy strategy needs separate discussion
+        - User data fields are copied normally
+    
+    Data Access Interfaces:
+        - Dictionary-style access: record["field"] and record.get("field")
+        - Property access: record_id, table_id, schema properties for metadata
+        - API format conversion: to_api_format() and from_api_format() methods
+        - State detection: is_attached and is_detached properties
+    
+    State Protection:
+        - _attach() method: Protected method, should only be called by table's
+          create_records or create_record methods. Strongly discouraged to call directly.
+        - _mark_deleted() method: Protected method, should only be called by table's
+          delete_records or delete_record methods. Strongly discouraged to call directly.
+    
+    === ATTRIBUTES ===
+    
     Attributes:
         _data (Dict[str, Any]): All record fields including user data and system fields
         _record_id (Optional[int]): Record ID, None for offline records
