@@ -9,8 +9,11 @@ This package contains validators for basic column types:
 """
 
 from .text import SingleLineTextValidator, LongTextValidator
+from .numeric import NumberValidator, DecimalValidator
 
 __all__ = [
     'SingleLineTextValidator',
     'LongTextValidator',
+    'NumberValidator',
+    'DecimalValidator',
 ]
