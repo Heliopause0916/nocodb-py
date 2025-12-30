@@ -17,7 +17,7 @@ from .base import ValidationResult, ValidationLevel, Validator, register_validat
 
 # Import basic validators
 from .basic.text import SingleLineTextValidator, LongTextValidator
-from .basic.numeric import NumberValidator, DecimalValidator, PercentValidator
+from .basic.numeric import NumberValidator, DecimalValidator, PercentValidator, RatingValidator
 from .basic.checkbox import CheckboxValidator
 from .basic.datetime import DateValidator, TimeValidator, DateTimeValidator, YearValidator
 
@@ -33,6 +33,7 @@ __all__ = [
     'NumberValidator',
     'DecimalValidator',
     'PercentValidator',
+    'RatingValidator',
     'CheckboxValidator',
     'DateValidator',
     'TimeValidator',

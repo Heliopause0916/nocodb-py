@@ -5,6 +5,7 @@ This module contains validators for numeric column types:
 - Number: Integer and floating-point numbers
 - Decimal: High-precision decimal numbers
 - Percent: Percentage values (allows any numeric value, no range restrictions)
+- Rating: Rating values (integer from 0 to 10, inclusive)
 """
 
 import warnings
@@ -344,6 +345,138 @@ class PercentValidator(Validator):
         
         # For FULL validation, could add additional checks (e.g., precision constraints)
         # Note: We do NOT add range validation (0-100) as NocoDB accepts any numeric value
+        if level == ValidationLevel.FULL and column:
+            # In a real implementation, this could check column-specific constraints
+            # For now, just return valid result
+            pass
+        
+        return ValidationResult(
+            is_valid=True,
+            error_message="",
+            converted_value=converted_value,
+            value_type=value_type
+        )
+
+
+@register_validator(NocoDBColumnType.RATING)
+class RatingValidator(Validator):
+    """
+    Validator for Rating column type.
+    
+    Validates that the value is an integer between 0 and 10 (inclusive).
+    API does not accept null values, so None is automatically converted to 0.
+    Supports conversion from strings and floats to integers.
+    """
+    
+    def validate(self,
+                value: Any,
+                column: Optional[NocoDBColumn],
+                level: ValidationLevel = ValidationLevel.STRUCTURAL,
+                direction: Literal["to_python", "to_api"] = "to_python") -> ValidationResult:
+        """
+        Unified validation and conversion for Rating column type.
+        
+        Args:
+            value: The value to validate and convert
+            column: The NocoDBColumn instance for contextual information
+            level: The validation level to use
+            direction: Conversion direction
+                - "to_python": API data → Python internal object (with validation)
+                - "to_api": Python object → API data format (validate format compatibility)
+                
+        Returns:
+            ValidationResult: Detailed validation result with converted value and value type
+        """
+        # Map direction to value_type: "to_python" -> "python", "to_api" -> "api"
+        value_type = "python" if direction == "to_python" else "api"
+        
+        # Handle None value based on direction
+        if value is None:
+            if direction == "to_api":
+                # API does not accept null, convert None to 0 (default value)
+                return ValidationResult(
+                    is_valid=True,
+                    error_message="",
+                    converted_value=0,
+                    value_type=value_type
+                )
+            else:
+                # to_python: API should not return null, but handle gracefully
+                return ValidationResult(
+                    is_valid=True,
+                    error_message="",
+                    converted_value=0,
+                    value_type=value_type
+                )
+        
+        # Convert value based on direction
+        if direction == "to_python":
+            # API → Python: try to convert to integer
+            if isinstance(value, int):
+                converted_value = value
+            elif isinstance(value, float):
+                # Check if float is actually an integer
+                if value.is_integer():
+                    converted_value = int(value)
+                else:
+                    return ValidationResult(
+                        is_valid=False,
+                        error_message=f"Rating value must be an integer between 0 and 10, got float {value}",
+                        converted_value=None,
+                        value_type=value_type
+                    )
+            else:
+                # For non-numeric types, try conversion
+                try:
+                    converted_value = int(value)
+                except (ValueError, TypeError) as e:
+                    return ValidationResult(
+                        is_valid=False,
+                        error_message=f"Failed to convert value to rating: {str(e)}",
+                        converted_value=None,
+                        value_type=value_type
+                    )
+            
+        elif direction == "to_api":
+            # Python → API: ensure value is integer in valid range
+            if isinstance(value, int):
+                converted_value = value
+            elif isinstance(value, float):
+                # Check if float is actually an integer
+                if value.is_integer():
+                    converted_value = int(value)
+                else:
+                    return ValidationResult(
+                        is_valid=False,
+                        error_message=f"Rating value must be an integer between 0 and 10, got float {value}",
+                        converted_value=None,
+                        value_type=value_type
+                    )
+            else:
+                # For non-numeric types, try conversion
+                try:
+                    converted_value = int(value)
+                except (ValueError, TypeError) as e:
+                    return ValidationResult(
+                        is_valid=False,
+                        error_message=f"Failed to convert value to rating: {str(e)}",
+                        converted_value=None,
+                        value_type=value_type
+                    )
+        else:
+            # Invalid direction
+            raise ValueError(f"Invalid direction: {direction}. Must be 'to_python' or 'to_api'")
+        
+        # Validate range: must be between 0 and 10 (inclusive)
+        if not (0 <= converted_value <= 10):
+            return ValidationResult(
+                is_valid=False,
+                error_message=f"Rating value must be between 0 and 10 (inclusive), got {converted_value}",
+                converted_value=None,
+                value_type=value_type
+            )
+        
+        # For FULL validation, could add additional checks
         if level == ValidationLevel.FULL and column:
             # In a real implementation, this could check column-specific constraints
             # For now, just return valid result
