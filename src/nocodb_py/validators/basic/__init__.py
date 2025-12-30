@@ -10,10 +10,12 @@ This package contains validators for basic column types:
 
 from .text import SingleLineTextValidator, LongTextValidator
 from .numeric import NumberValidator, DecimalValidator
+from .checkbox import CheckboxValidator
 
 __all__ = [
     'SingleLineTextValidator',
     'LongTextValidator',
     'NumberValidator',
     'DecimalValidator',
+    'CheckboxValidator',
 ]
