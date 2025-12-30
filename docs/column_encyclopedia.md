@@ -52,10 +52,10 @@ NocoDB 提供了丰富的列类型，可以满足各种数据管理需求。我�
 
 | 列类型 | API 返回类型 | API 接受类型 | Python 推荐类型 | is_basic | 备注 |
 |--------|-------------|-------------|----------------|----------|------|
-| **单行文本** | `string` | `string` | `str` | ✅ | - |
-| **长文本** | `string` | `string` | `str` | ✅ | 支持富文本 |
-| **数字** | `integer` | `integer` | `int` | ✅ | 支持大整数 |
-| **小数** | `string` | `string` 或 `number` | `float` | ✅ | TODO: 需要测试是否接受数值类型 |
+| **单行文本** | `string` 或 `null` | `string` 或 `null` | `str` 或 `None` | ✅ | 支持 null 值 |
+| **长文本** | `string` 或 `null` | `string` 或 `null` | `str` 或 `None` | ✅ | 支持富文本和 null 值 |
+| **数字** | `integer` 或 `null` | `integer` 或 `null` | `int` 或 `None` | ✅ | 支持大整数和 null 值 |
+| **小数** | `string` 或 `null` | `string` 或 `number` 或 `null` | `float` 或 `None` | ✅ | 支持数值类型和 null 值 |
 | **日期** | `string` | `string` | `datetime.date` | ✅ | 格式: YYYY-MM-DD |
 | **时间** | `string` | `string` | `datetime.time` | ✅ | 格式: HH:mm:ss |
 | **日期时间** | `string` | `string` | `datetime.datetime` | ✅ | ISO 8601 格式 |
@@ -88,35 +88,35 @@ NocoDB 提供了丰富的列类型，可以满足各种数据管理需求。我�
 
 ### 单行文本 (SingleLineText)
 - **用途**：存储简短文本信息，如姓名、标题、标签等
-- **特点**：长度无限制，适合存储简短内容
-- **API 返回类型**：`string`
-- **API 接受类型**：`string`
-- **Python 推荐类型**：`str`
-- **示例值**：`"张三"`, `"项目标题"`, `"标签名称"`
+- **特点**：长度无限制，适合存储简短内容，支持 null 值
+- **API 返回类型**：`string` 或 `null`
+- **API 接受类型**：`string` 或 `null`
+- **Python 推荐类型**：`str` 或 `None`
+- **示例值**：`"张三"`, `"项目标题"`, `"标签名称"`, `null`
 
 ### 长文本 (LongText)
 - **用途**：存储较长的文本内容，如描述、备注、文章等
-- **特点**：支持富文本编辑，可包含格式和链接
-- **API 返回类型**：`string`
-- **API 接受类型**：`string`
-- **Python 推荐类型**：`str`
-- **示例值**：`"这是一个详细的描述..."`, `"项目说明文档"`
+- **特点**：支持富文本编辑，可包含格式和链接，支持 null 值
+- **API 返回类型**：`string` 或 `null`
+- **API 接受类型**：`string` 或 `null`
+- **Python 推荐类型**：`str` 或 `None`
+- **示例值**：`"这是一个详细的描述..."`, `"项目说明文档"`, `null`
 
 ### 数字 (Number)
 - **用途**：存储整数数值
-- **特点**：支持大整数，可设置本地化显示格式
-- **API 返回类型**：`integer`
-- **API 接受类型**：`integer`
-- **Python 推荐类型**：`int`
-- **示例值**：`12345`, `-100`, `999999`
+- **特点**：支持大整数，可设置本地化显示格式，支持 null 值
+- **API 返回类型**：`integer` 或 `null`
+- **API 接受类型**：`integer` 或 `null`
+- **Python 推荐类型**：`int` 或 `None`
+- **示例值**：`12345`, `-100`, `999999`, `null`
 
 ### 小数 (Decimal)
 - **用途**：存储带小数点的数值
-- **特点**：可控制小数位数精度
-- **API 返回类型**：`string`（格式化数值）
-- **API 接受类型**：`string` 或 `number`（TODO: 需要测试数值类型支持）
-- **Python 推荐类型**：`float`
-- **示例值**：`"3.14"`, `"0.50"`, `"100.00"`
+- **特点**：可控制小数位数精度，支持 null 值
+- **API 返回类型**：`string` 或 `null`（格式化数值）
+- **API 接受类型**：`string` 或 `number` 或 `null`（TODO: 需要测试数值类型支持）
+- **Python 推荐类型**：`float` 或 `None`
+- **示例值**：`"3.14"`, `"0.50"`, `"100.00"`, `null`
 
 ### 日期 (Date)
 - **用途**：存储日期信息
