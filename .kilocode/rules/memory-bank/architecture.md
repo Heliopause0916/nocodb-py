@@ -43,15 +43,23 @@ graph TD
 
 ### 验证器系统模块
 - **核心组件**：
-  - `ValidationResult`：验证结果容器，包含验证状态、错误信息和转换值
+  - `ValidationResult`：验证结果容器，包含验证状态、错误信息、转换值和值类型
   - `ValidationLevel`：验证级别枚举（STRUCTURAL和FULL）
   - `Validator`：验证器基类，定义统一接口
   - `SingleLineTextValidator`：单行文本验证器（已实现）
+  - `LongTextValidator`：长文本验证器（已实现）
 - **注册系统**：
   - `VALIDATOR_REGISTRY`：验证器注册表，映射列类型到验证器类
   - `register_validator`：装饰器函数，用于注册验证器
   - `get_validator`：获取验证器实例的工厂函数
   - `validate_value`：全局验证函数，提供统一的验证接口
+- **模块化架构**：
+  - **基础模块**：`validators/base.py` - 包含核心验证器类和注册系统
+  - **基础类型验证器**：`validators/basic/` - 包含文本、数字、日期等基础类型验证器
+  - **选择类型验证器**：`validators/selection/` - 包含单选、多选等选择类型验证器
+  - **验证类型验证器**：`validators/validation/` - 包含邮箱、URL等验证类型验证器
+  - **特殊类型验证器**：`validators/special/` - 包含JSON、附件等特殊类型验证器
+  - **系统类型验证器**：`validators/system/` - 包含系统列、审计字段等验证器
 
 ### 入口点
 - [`src/nocodb_py/__init__.py`](../../../src/nocodb_py/__init__.py) - 包初始化，导出核心类
@@ -177,6 +185,39 @@ graph TD
     M --> O[继续验证]
     
     A --> M
+    
+    P[模块化架构] --> Q[基础模块]
+    P --> R[基础类型验证器]
+    P --> S[选择类型验证器]
+    P --> T[验证类型验证器]
+    P --> U[特殊类型验证器]
+    P --> V[系统类型验证器]
+    
+    Q --> W[ValidationResult]
+    Q --> X[ValidationLevel]
+    Q --> Y[Validator基类]
+    Q --> Z[注册系统]
+    
+    R --> R1[文本验证器]
+    R --> R2[数字验证器]
+    R --> R3[日期验证器]
+    R --> R4[布尔验证器]
+    
+    S --> S1[单选验证器]
+    S --> S2[多选验证器]
+    
+    T --> T1[邮箱验证器]
+    T --> T2[URL验证器]
+    T --> T3[电话验证器]
+    T --> T4[货币验证器]
+    
+    U --> U1[JSON验证器]
+    U --> U2[附件验证器]
+    U --> U3[用户验证器]
+    
+    V --> V1[系统列验证器]
+    V --> V2[审计字段验证器]
+    V --> V3[计算字段验证器]
 ```
 
 ## 组件关系
