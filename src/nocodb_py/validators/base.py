@@ -53,15 +53,15 @@ class Validator:
     #pylint: disable=unused-argument
     def validate(self,
                 value: Any,
-                column: NocoDBColumn,
-                level: ValidationLevel,
+                column: Optional[NocoDBColumn],
+                level: ValidationLevel = ValidationLevel.STRUCTURAL,
                 direction: Literal["to_python", "to_api"] = "to_python") -> ValidationResult:
         """
         Unified validation and conversion method for column types.
         
         Args:
             value: The value to validate and convert
-            column: The NocoDBColumn instance for contextual information
+            column: The NocoDBColumn instance for contextual information (optional)
             level: The validation level to use
             direction: Conversion direction
                 - "to_python": API data → Python internal object (with validation)
@@ -124,7 +124,7 @@ def get_validator(column_type: NocoDBColumnType) -> Validator:
 def validate_value(
     value: Any,
     column_type: NocoDBColumnType,
-    column: Optional[Any] = None,
+    column: Optional[NocoDBColumn] = None,
     level: ValidationLevel = ValidationLevel.STRUCTURAL,
     direction: Literal["to_python", "to_api"] = "to_python"
 ) -> ValidationResult:
@@ -134,7 +134,7 @@ def validate_value(
     Args:
         value: The value to validate
         column_type: The NocoDBColumnType to validate against
-        column: Optional column instance for contextual validation
+        column: Optional NocoDBColumn instance for contextual validation
         level: The validation level to use
         direction: Conversion direction
             - "to_python": API data → Python internal object (with validation)
@@ -163,11 +163,5 @@ def validate_value(
             value_type="python" if direction == "to_python" else "api"
         )
     
-    # Use the unified validate method
-    if column is None:
-        # For validation without column context, create a minimal column info dict
-        column_info = {"title": "temp", "uidt": column_type.value}
-        # Create a simple object with column_info attribute
-        column = type('SimpleColumn', (), {'column_info': column_info})()
-    
+    # Use the unified validate method - column can be None, which is now supported
     return validator.validate(value, column, level, direction)

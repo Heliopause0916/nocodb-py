@@ -6,7 +6,8 @@ This module contains validators for text-based column types:
 - LongText: Multi-line text input
 """
 
-from typing import Any, Literal
+import warnings
+from typing import Any, Literal, Optional
 from ...column import NocoDBColumnType, NocoDBColumn
 from ..base import Validator, ValidationResult, ValidationLevel, register_validator
 
@@ -79,8 +80,8 @@ class SingleLineTextValidator(Validator):
     
     def validate(self,
                 value: Any,
-                column: NocoDBColumn,
-                level: ValidationLevel,
+                column: Optional[NocoDBColumn],
+                level: ValidationLevel = ValidationLevel.STRUCTURAL,
                 direction: Literal["to_python", "to_api"] = "to_python") -> ValidationResult:
         """
         Unified validation and conversion for SingleLineText column type.
@@ -112,6 +113,17 @@ class SingleLineTextValidator(Validator):
             # For now, just return valid result
             pass
         
+        # Check for newline characters in SingleLineText (only for successful conversions)
+        if result.is_valid and result.converted_value is not None:
+            if '\n' in result.converted_value or '\r' in result.converted_value:
+                column_title = column.get_title() if column else 'unknown'
+                warnings.warn(
+                    f"SingleLineText column '{column_title}' contains newline characters. "
+                    f"This may not be appropriate for single-line text fields.",
+                    UserWarning,
+                    stacklevel=2
+                )
+        
         return result
 
 
@@ -125,8 +137,8 @@ class LongTextValidator(Validator):
     
     def validate(self,
                 value: Any,
-                column: NocoDBColumn,
-                level: ValidationLevel,
+                column: Optional[NocoDBColumn],
+                level: ValidationLevel = ValidationLevel.STRUCTURAL,
                 direction: Literal["to_python", "to_api"] = "to_python") -> ValidationResult:
         """
         Unified validation and conversion for LongText column type.
