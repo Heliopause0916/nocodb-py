@@ -11,6 +11,64 @@ from ...column import NocoDBColumnType, NocoDBColumn
 from ..base import Validator, ValidationResult, ValidationLevel, register_validator
 
 
+def _convert_to_string(value: Any, direction: Literal["to_python", "to_api"], value_type: Literal["python", "api"]) -> ValidationResult:
+    """
+    Internal helper function to convert value to string with error handling.
+    
+    Args:
+        value: The value to convert
+        direction: Conversion direction
+        value_type: The target value type ("python" or "api")
+        
+    Returns:
+        ValidationResult: Result containing converted value or error message
+    """
+    # Handle None value
+    if value is None:
+        return ValidationResult(
+            is_valid=True,
+            error_message="",
+            converted_value=None,
+            value_type=value_type
+        )
+    
+    # Convert value to string based on direction
+    if direction == "to_python":
+        # API → Python: try to convert any type to string
+        try:
+            converted_value = str(value)
+        except Exception as e:
+            return ValidationResult(
+                is_valid=False,
+                error_message=f"Failed to convert value to string: {str(e)}",
+                converted_value=None,
+                value_type=value_type
+            )
+        
+    elif direction == "to_api":
+        # Python → API: try to convert any type to string
+        try:
+            converted_value = str(value)
+        except Exception as e:
+            return ValidationResult(
+                is_valid=False,
+                error_message=f"Failed to convert value to string: {str(e)}",
+                converted_value=None,
+                value_type=value_type
+            )
+        
+    else:
+        # Invalid direction
+        raise ValueError(f"Invalid direction: {direction}. Must be 'to_python' or 'to_api'")
+    
+    return ValidationResult(
+        is_valid=True,
+        error_message="",
+        converted_value=converted_value,
+        value_type=value_type
+    )
+
+
 @register_validator(NocoDBColumnType.SINGLE_LINE_TEXT)
 class SingleLineTextValidator(Validator):
     """
@@ -41,30 +99,12 @@ class SingleLineTextValidator(Validator):
         # Map direction to value_type: "to_python" -> "python", "to_api" -> "api"
         value_type = "python" if direction == "to_python" else "api"
         
-        # Handle None value
-        if value is None:
-            return ValidationResult(
-                is_valid=True,
-                error_message="",
-                converted_value=None,
-                value_type=value_type
-            )
+        # Use helper function for string conversion
+        result = _convert_to_string(value, direction, value_type)
         
-        # Convert value to string based on direction
-        if direction == "to_python":
-            # API → Python: ensure value is a string
-            if not isinstance(value, str):
-                return ValidationResult(
-                    is_valid=False,
-                    error_message=f"Expected string type for API data, got {type(value).__name__}",
-                    converted_value=None,
-                    value_type=value_type
-                )
-            converted_value = str(value)
-            
-        else:  # direction == "to_api"
-            # Python → API: convert any type to string
-            converted_value = str(value)
+        # If conversion failed, return the error result
+        if not result.is_valid:
+            return result
         
         # For FULL validation, could add additional checks (e.g., length constraints)
         if level == ValidationLevel.FULL:
@@ -72,12 +112,7 @@ class SingleLineTextValidator(Validator):
             # For now, just return valid result
             pass
         
-        return ValidationResult(
-            is_valid=True,
-            error_message="",
-            converted_value=converted_value,
-            value_type=value_type
-        )
+        return result
 
 
 @register_validator(NocoDBColumnType.LONG_TEXT)
@@ -110,30 +145,12 @@ class LongTextValidator(Validator):
         # Map direction to value_type: "to_python" -> "python", "to_api" -> "api"
         value_type = "python" if direction == "to_python" else "api"
         
-        # Handle None value
-        if value is None:
-            return ValidationResult(
-                is_valid=True,
-                error_message="",
-                converted_value=None,
-                value_type=value_type
-            )
+        # Use helper function for string conversion
+        result = _convert_to_string(value, direction, value_type)
         
-        # Convert value to string based on direction
-        if direction == "to_python":
-            # API → Python: ensure value is a string
-            if not isinstance(value, str):
-                return ValidationResult(
-                    is_valid=False,
-                    error_message=f"Expected string type for API data, got {type(value).__name__}",
-                    converted_value=None,
-                    value_type=value_type
-                )
-            converted_value = str(value)
-            
-        else:  # direction == "to_api"
-            # Python → API: convert any type to string
-            converted_value = str(value)
+        # If conversion failed, return the error result
+        if not result.is_valid:
+            return result
         
         # For FULL validation, could add additional checks (e.g., length constraints)
         if level == ValidationLevel.FULL:
@@ -141,9 +158,4 @@ class LongTextValidator(Validator):
             # For now, just return valid result
             pass
         
-        return ValidationResult(
-            is_valid=True,
-            error_message="",
-            converted_value=converted_value,
-            value_type=value_type
-        )
+        return result
