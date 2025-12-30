@@ -5,6 +5,7 @@ This module contains validators for datetime-based column types:
 - Date: Date values (YYYY-MM-DD format)
 - Time: Time values (HH:mm:ss format)
 - DateTime: Datetime values (ISO 8601 format with timezone)
+- Year: Year values (integer between 1 and 9999)
 """
 
 import warnings
@@ -378,6 +379,162 @@ class DateTimeValidator(Validator):
             raise ValueError(f"Invalid direction: {direction}. Must be 'to_python' or 'to_api'")
         
         # For FULL validation, could add additional checks (e.g., range constraints)
+        if level == ValidationLevel.FULL:
+            # In a real implementation, this could check column constraints
+            # For now, just return valid result
+            pass
+        
+        return ValidationResult(
+            is_valid=True,
+            error_message="",
+            converted_value=converted_value,
+            value_type=value_type
+        )
+
+
+# Year validation constants
+MIN_YEAR = 1
+MAX_YEAR = 9999
+
+
+@register_validator(NocoDBColumnType.YEAR)
+class YearValidator(Validator):
+    """
+    Validator for Year column type.
+    
+    Validates that the value is a valid year (integer between 1 and 9999).
+    Supports None values as valid input.
+    """
+    
+    def validate(self,
+                value: Any,
+                column: Optional[NocoDBColumn],
+                level: ValidationLevel = ValidationLevel.STRUCTURAL,
+                direction: Literal["to_python", "to_api"] = "to_python") -> ValidationResult:
+        """
+        Unified validation and conversion for Year column type.
+        
+        Args:
+            value: The value to validate and convert
+            column: The NocoDBColumn instance for contextual information
+            level: The validation level to use
+            direction: Conversion direction
+                - "to_python": API data → Python internal object (with validation)
+                - "to_api": Python object → API data format (validate format compatibility)
+                
+        Returns:
+            ValidationResult: Detailed validation result with converted value and value type
+        """
+        # Map direction to value_type: "to_python" -> "python", "to_api" -> "api"
+        value_type = "python" if direction == "to_python" else "api"
+        
+        # Handle None value - Year supports None
+        if value is None:
+            return ValidationResult(
+                is_valid=True,
+                error_message="",
+                converted_value=None,
+                value_type=value_type
+            )
+        
+        # Convert value based on direction
+        if direction == "to_python":
+            # API → Python: convert to integer
+            if isinstance(value, bool):
+                # Reject boolean values explicitly
+                return ValidationResult(
+                    is_valid=False,
+                    error_message=f"Invalid type for year: bool. Must be integer.",
+                    converted_value=None,
+                    value_type=value_type
+                )
+            elif isinstance(value, int):
+                # Already an integer
+                converted_value = value
+            elif isinstance(value, float):
+                # Warn if float is provided (decimal component will be lost)
+                column_title = column.get_title() if column else 'unknown'
+                warnings.warn(
+                    f"Year column '{column_title}' received float value {value}. "
+                    f"Decimal component will be lost.",
+                    UserWarning,
+                    stacklevel=2
+                )
+                converted_value = int(value)
+            elif isinstance(value, str):
+                # Try to parse string to integer
+                try:
+                    converted_value = int(value)
+                except ValueError as e:
+                    return ValidationResult(
+                        is_valid=False,
+                        error_message=f"Failed to parse year string '{value}': {str(e)}",
+                        converted_value=None,
+                        value_type=value_type
+                    )
+            else:
+                return ValidationResult(
+                    is_valid=False,
+                    error_message=f"Invalid type for year: {type(value).__name__}. Must be integer.",
+                    converted_value=None,
+                    value_type=value_type
+                )
+            
+        elif direction == "to_api":
+            # Python → API: convert to integer
+            if isinstance(value, bool):
+                # Reject boolean values explicitly
+                return ValidationResult(
+                    is_valid=False,
+                    error_message=f"Invalid type for year: bool. Must be integer.",
+                    converted_value=None,
+                    value_type=value_type
+                )
+            elif isinstance(value, int):
+                # Already an integer
+                converted_value = value
+            elif isinstance(value, float):
+                # Warn if float is provided (decimal component will be lost)
+                column_title = column.get_title() if column else 'unknown'
+                warnings.warn(
+                    f"Year column '{column_title}' received float value {value}. "
+                    f"Decimal component will be lost.",
+                    UserWarning,
+                    stacklevel=2
+                )
+                converted_value = int(value)
+            elif isinstance(value, str):
+                # Try to parse string to integer
+                try:
+                    converted_value = int(value)
+                except ValueError as e:
+                    return ValidationResult(
+                        is_valid=False,
+                        error_message=f"Failed to parse year string '{value}': {str(e)}",
+                        converted_value=None,
+                        value_type=value_type
+                    )
+            else:
+                return ValidationResult(
+                    is_valid=False,
+                    error_message=f"Invalid type for year: {type(value).__name__}. Must be integer.",
+                    converted_value=None,
+                    value_type=value_type
+                )
+        else:
+            # Invalid direction
+            raise ValueError(f"Invalid direction: {direction}. Must be 'to_python' or 'to_api'")
+        
+        # Validate year range
+        if not (MIN_YEAR <= converted_value <= MAX_YEAR):
+            return ValidationResult(
+                is_valid=False,
+                error_message=f"Year value {converted_value} is out of valid range ({MIN_YEAR}-{MAX_YEAR}).",
+                converted_value=None,
+                value_type=value_type
+            )
+        
+        # For FULL validation, could add additional checks (e.g., future year restrictions)
         if level == ValidationLevel.FULL:
             # In a real implementation, this could check column constraints
             # For now, just return valid result
