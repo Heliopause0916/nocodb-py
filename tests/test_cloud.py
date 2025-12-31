@@ -214,6 +214,14 @@ class TestCloudNocoDB:
                 deleted_project.get_full_info()
             logger.success("Deleted project access correctly raised exception")
             
+            # Step 7: Verify deleted project is not in project list
+            logger.info(f"[Step 7] Verifying deleted project {project_id} is not in project list")
+            all_projects: List[Dict[str, Any]] = target_workspace.list_projects()
+            project_ids = [p.get('id') for p in all_projects if p.get('id')]
+            logger.info(f"Current project IDs in list: {project_ids}")
+            assert project_id not in project_ids, f"Deleted project ID {project_id} should not be in project list"
+            logger.success("Deleted project correctly removed from project list")
+            
             logger.success("All CRUD test steps passed successfully!")
             
         except Exception as e:
