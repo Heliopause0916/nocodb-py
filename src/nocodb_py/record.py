@@ -232,6 +232,46 @@ class NocoDBRecord:
             self._mark_deleted()
             raise
     
+    def exists(self) -> bool:
+        """
+        Check if the record still exists in the database.
+        
+        This method is only available for attached (online) records. It calls the
+        table's get_record method to check if the record exists, but does not
+        update the record's internal data.
+        
+        Returns:
+            bool: True if the record exists in the database, False otherwise
+            
+        Raises:
+            ValueError: If the record is not attached to a table or has been deleted
+            requests.exceptions.HTTPError: For other HTTP errors
+        """
+        # Check if record is attached
+        if not self.is_attached:
+            raise ValueError("Cannot check existence of detached record. Only attached records can be checked.")
+        
+        # Check if record is deleted
+        if self.is_deleted:
+            raise ValueError("Cannot check existence of deleted record.")
+        
+        # Check if table is available
+        if self._table is None:
+            raise ValueError("Cannot check record existence: table reference is None")
+        
+        # Type assertion for record_id (should not be None for attached records)
+        if self._record_id is None:
+            raise ValueError("Cannot check record existence: record_id is None for attached record")
+        
+        try:
+            # Try to get the record (we don't care about the data, just if it exists)
+            self._table.get_record(self._record_id, return_type="json")
+            return True
+        except RecordNotFoundError:
+            # If record no longer exists, mark as deleted
+            self._mark_deleted()
+            return False
+    
     def to_api_format(self) -> Dict[str, Any]:
         """
         Convert to NocoDB API native format
