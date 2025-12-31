@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .table import NocoDBTable
     from .column import NocoDBSchema
+    from .exceptions import RecordNotFoundError
 
 
 class NocoDBRecord:
@@ -171,6 +172,65 @@ class NocoDBRecord:
         Strongly discouraged to call this method directly from external code.
         """
         self._is_deleted = True
+    
+    def sync(self) -> 'NocoDBRecord':
+        """
+        Synchronize record data with the database by fetching the latest version.
+        
+        This method is only available for attached (online) records. It calls the
+        table's get_record method to retrieve the latest data from the database
+        and updates the record's internal data.
+        
+        Returns:
+            NocoDBRecord: Self for method chaining
+            
+        Raises:
+            ValueError: If the record is not attached to a table or has been deleted
+            RecordNotFoundError: If the record no longer exists in the database
+            requests.exceptions.HTTPError: For other HTTP errors
+        """
+        # Check if record is attached
+        if not self.is_attached:
+            raise ValueError("Cannot sync detached record. Only attached records can be synchronized.")
+        
+        # Check if record is deleted
+        if self.is_deleted:
+            raise ValueError("Cannot sync deleted record.")
+        
+        # Check if table is available
+        if self._table is None:
+            raise ValueError("Cannot sync record: table reference is None")
+        
+        # Type assertion for record_id (should not be None for attached records)
+        if self._record_id is None:
+            raise ValueError("Cannot sync record: record_id is None for attached record")
+        
+        try:
+            # Get latest record data from table as JSON
+            latest_data = self._table.get_record(self._record_id, return_type="json")
+            
+            # Type assertion: latest_data should be Dict when return_type="json"
+            if not isinstance(latest_data, dict):
+                raise TypeError(f"Expected dict from get_record with return_type='json', got {type(latest_data)}")
+            
+            # Create a copy of the API data (all fields including system fields)
+            data = latest_data.copy()
+            
+            # Remove Id field from data to avoid duplication (same as from_api_format)
+            if "Id" in data:
+                del data["Id"]
+            
+            # Update internal data with latest data
+            self._data = data
+            
+            # Reset original data hash to reflect new state
+            self._original_data_hash = self._compute_data_hash()
+            
+            return self
+        except RecordNotFoundError:
+            # If record no longer exists, mark as deleted
+            self._mark_deleted()
+            raise
     
     def to_api_format(self) -> Dict[str, Any]:
         """
