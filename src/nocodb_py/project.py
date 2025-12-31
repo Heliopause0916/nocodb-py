@@ -390,6 +390,78 @@ class NocoDBProject:
                            table_id=table_id,
                            **kwargs)
 
+    def create_table(self, title: str, columns: List[Dict[str, Any]],
+                    table_name: Optional[str] = None,
+                    description: Optional[str] = None) -> Dict[str, Any]:
+        """
+        Create a new table in the project.
+        
+        Args:
+            title (str): Table title (required)
+            columns (List[Dict[str, Any]]): List of column definitions (required)
+                Each column must contain:
+                - title (str): Column title
+                - uidt (str): Column type (e.g., "SingleLineText", "Number", "Date")
+            table_name (Optional[str]): Table name
+            description (Optional[str]): Table description
+            
+        Returns:
+            Dict[str, Any]: Created table information
+            
+        Raises:
+            ValueError: If required parameters are missing or invalid
+            APIError: If API call fails
+        """
+        # Validate required parameters
+        if not title or not isinstance(title, str) or len(title.strip()) == 0:
+            raise ValueError("Table title is required and must be a non-empty string")
+        
+        if not columns or not isinstance(columns, list) or len(columns) == 0:
+            raise ValueError("Columns list is required and must be a non-empty list")
+        
+        # Validate each column definition
+        for i, column in enumerate(columns):
+            if not isinstance(column, dict):
+                raise ValueError(f"Column at index {i} must be a dictionary")
+            
+            col_title = column.get("title")
+            if not col_title or not isinstance(col_title, str) or len(col_title.strip()) == 0:
+                raise ValueError(f"Column at index {i} must have a non-empty 'title' string")
+            
+            col_uidt = column.get("uidt")
+            if not col_uidt or not isinstance(col_uidt, str) or len(col_uidt.strip()) == 0:
+                raise ValueError(f"Column at index {i} must have a non-empty 'uidt' string")
+        
+        # Build request body
+        request_body: Dict[str, Any] = {
+            "title": title.strip(),
+            "columns": columns
+        }
+        
+        # Add optional parameters if provided
+        if table_name is not None:
+            if not isinstance(table_name, str) or len(table_name.strip()) == 0:
+                raise ValueError("Table name must be a non-empty string if provided")
+            request_body["table_name"] = table_name.strip()
+        
+        if description is not None:
+            if not isinstance(description, str) or len(description.strip()) == 0:
+                raise ValueError("Description must be a non-empty string if provided")
+            request_body["description"] = description.strip()
+        
+        # Make API call
+        # pylint: disable=protected-access
+        # Reason: NocoDBClient._post is intentionally accessible to NocoDB-related classes
+        response = self._client._post(
+            f"{self.get_meta_v2_prefix()}/tables",
+            json=request_body
+        )
+        
+        # Clear tables cache to ensure subsequent queries get fresh data
+        self.clear_tables_cache()
+        
+        return response
+
     def get_meta_v2_prefix(self) -> str:
         """
         Get the meta v2 prefix for the project
