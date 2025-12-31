@@ -338,13 +338,25 @@ class NocoDBRecordSet:
     This implementation uses row-based storage to optimize for frequent insert/delete operations.
     Field names are stored once in _field_names, and each record is stored as a list of values
     in the same order as _field_names. Metadata is stored in separate lists for efficiency.
+
+    === STATE CONSTRAINTS ===
     
+    Core Constraints:
+    1. **Uniform State Constraint**: NocoDBRecordSet does not allow mixed attached and detached records.
+       The entire RecordSet must have a uniform attachment state.
+    2. **Creation Source Constraint**: User-created RecordSets are entirely detached, while table methods
+       return entirely attached RecordSets.
+    3. **State Consistency**: Only records with the same state, same table, and same deletion status
+       can be combined in operations.
+    4. **State Irreversibility**: Online RecordSets cannot become offline (except through copy operations).
+    5. **Construction Validation**: When creating from List[NocoDBRecord], state consistency is validated.
+
     Key features:
     - Row-based storage: Each record is a list of values, field names stored once
     - Efficient insert/delete: O(n) complexity for row operations
-    - State management: Tracks online/offline, modified, and deleted states
+    - State management: Tracks online/offline, modified, and deleted states with uniform constraints
     - Performance: Optimized for row-level CRUD operations
-    
+
     Attributes:
         _field_names (List[str]): Unique field names across all records (ordered)
         _data (List[List[Any]]): Row-based data storage, each inner list is a record
@@ -353,8 +365,9 @@ class NocoDBRecordSet:
         _is_deleted (List[bool]): Deletion status for each record
         _table (Optional['NocoDBTable']): Table object
         _schema (Optional['NocoDBSchema']): Table schema
-        _is_attached_any (bool): Whether any record is attached to table
-    
+        _is_uniformly_attached (bool): Whether all records are uniformly attached to the same table
+        _is_uniformly_detached (bool): Whether all records are uniformly detached
+
     WARNING: After insert or delete operations, existing indices may point to different records.
     This is standard Python list behavior. Always refresh indices after structural modifications.
     """
@@ -368,6 +381,9 @@ class NocoDBRecordSet:
         Args:
             records: List of records
             table: Table object, optional
+            
+        Raises:
+            ValueError: If records have inconsistent attachment states, table references, or deletion states
         """
         # Initialize row-based storage structure
         self._field_names: List[str] = []
@@ -380,11 +396,62 @@ class NocoDBRecordSet:
         # Get schema from first record (if exists)
         self._schema = records[0].schema if records else None
         
-        # Check if any record is attached
-        self._is_attached_any = any(record.is_attached for record in records) if records else False
+        # Validate state consistency before building storage
+        self._validate_state_consistency(records)
+        
+        # Calculate uniform state flags
+        self._is_uniformly_attached = all(record.is_attached for record in records) if records else False
+        self._is_uniformly_detached = all(record.is_detached for record in records) if records else True
+        
+        # For attached RecordSets, set table reference from the first record
+        if self._is_uniformly_attached and records:
+            self._table = records[0].table
         
         # Build row-based storage
         self._build_row_storage(records)
+    
+    def _validate_state_consistency(self, records: List[NocoDBRecord]) -> None:
+        """
+        Validate state consistency of records
+        
+        Ensures that all records have the same attachment state, table reference, and deletion state.
+        
+        Args:
+            records: List of records to validate
+            
+        Raises:
+            ValueError: If records have inconsistent states
+        """
+        if not records:
+            return
+            
+        # Check attachment state consistency
+        first_attached = records[0].is_attached
+        for i, record in enumerate(records):
+            if record.is_attached != first_attached:
+                raise ValueError(
+                    f"Mixed attachment states in RecordSet: record {i} has "
+                    f"is_attached={record.is_attached}, but first record has is_attached={first_attached}"
+                )
+        
+        # Check table reference consistency for attached records
+        if first_attached:
+            first_table = records[0].table
+            for i, record in enumerate(records):
+                if record.table != first_table:
+                    raise ValueError(
+                        f"Mixed table references in attached RecordSet: record {i} has "
+                        f"table={record.table}, but first record has table={first_table}"
+                    )
+        
+        # Check deletion state consistency
+        first_deleted = records[0].is_deleted
+        for i, record in enumerate(records):
+            if record.is_deleted != first_deleted:
+                raise ValueError(
+                    f"Mixed deletion states in RecordSet: record {i} has "
+                    f"is_deleted={record.is_deleted}, but first record has is_deleted={first_deleted}"
+                )
     
     def _build_row_storage(self, records: List[NocoDBRecord]) -> None:
         """Build row-based storage from list of records"""
@@ -459,13 +526,18 @@ class NocoDBRecordSet:
     
     @property
     def is_attached(self) -> bool:
-        """Whether any record in the set is attached to a table"""
-        return self._is_attached_any
-    
+        """Whether all records in the set are attached to the same table"""
+        return self._is_uniformly_attached
+
     @property
     def is_detached(self) -> bool:
         """Whether all records in the set are detached"""
-        return not self._is_attached_any
+        return self._is_uniformly_detached
+
+    @property
+    def table(self) -> Optional['NocoDBTable']:
+        """Table object for attached RecordSets, None for detached RecordSets"""
+        return self._table if self._is_uniformly_attached else None
     
     def get_attached_records(self) -> List[int]:
         """Get indices of attached records"""
@@ -514,11 +586,38 @@ class NocoDBRecordSet:
             index: Position to insert the record
             record: Record to insert
         
+        Raises:
+            ValueError: If the record's state is inconsistent with the RecordSet's state
+            IndexError: If the index is out of range
+        
         WARNING: After insertion, existing indices may point to different records.
         This is standard Python list behavior. Always refresh indices after structural modifications.
         """
         if index < 0 or index > len(self._data):
             raise IndexError(f"Insert index {index} out of range")
+        
+        # Validate state consistency with existing records
+        if len(self._data) > 0:
+            # Check attachment state consistency
+            if record.is_attached != self._is_uniformly_attached:
+                raise ValueError(
+                    f"Cannot insert record with is_attached={record.is_attached} into "
+                    f"RecordSet with uniform_attached={self._is_uniformly_attached}"
+                )
+            
+            # Check table consistency for attached records
+            if record.is_attached and record.table != self._table:
+                raise ValueError(
+                    f"Cannot insert record with table={record.table} into "
+                    f"RecordSet with table={self._table}"
+                )
+            
+            # Check deletion state consistency
+            if record.is_deleted != self._is_deleted[0]:
+                raise ValueError(
+                    f"Cannot insert record with is_deleted={record.is_deleted} into "
+                    f"RecordSet with uniform_deleted={self._is_deleted[0]}"
+                )
         
         # Build record row in field name order
         row = [record._data.get(field) for field in self._field_names]
@@ -529,9 +628,17 @@ class NocoDBRecordSet:
         self._is_attached.insert(index, record.is_attached)
         self._is_deleted.insert(index, record.is_deleted)
         
-        # Update attachment status
-        if record.is_attached:
-            self._is_attached_any = True
+        # Update uniform state flags
+        if len(self._data) == 1:
+            # First record, set uniform flags based on this record
+            self._is_uniformly_attached = record.is_attached
+            self._is_uniformly_detached = record.is_detached
+            if record.is_attached:
+                self._table = record.table
+        else:
+            # Ensure uniform state is maintained
+            self._is_uniformly_attached = all(self._is_attached)
+            self._is_uniformly_detached = all(not attached for attached in self._is_attached)
     
     def delete_record(self, index: int) -> None:
         """
@@ -552,14 +659,101 @@ class NocoDBRecordSet:
         del self._is_attached[index]
         del self._is_deleted[index]
         
-        # Update attachment status if needed
-        if not any(self._is_attached):
-            self._is_attached_any = False
+        # Update uniform state flags
+        if len(self._data) == 0:
+            # No records left, reset to default state
+            self._is_uniformly_attached = False
+            self._is_uniformly_detached = True
+            self._table = None
+        else:
+            # Recalculate uniform state
+            self._is_uniformly_attached = all(self._is_attached)
+            self._is_uniformly_detached = all(not attached for attached in self._is_attached)
+    
+    def __copy__(self) -> 'NocoDBRecordSet':
+        """
+        Create a shallow copy of the RecordSet
+        
+        For attached RecordSets, this creates a detached copy with the same data but no table reference.
+        This follows the state irreversibility principle: online RecordSets cannot become offline
+        except through copy operations.
+        
+        Returns:
+            NocoDBRecordSet: Detached copy of the RecordSet
+        """
+        # Create detached copies of all records
+        detached_records = []
+        for record in self:
+            # Create a copy of the record data without ID and table reference
+            data_copy = copy.deepcopy(record._data)
+            detached_record = NocoDBRecord(
+                data=data_copy,
+                record_id=None,  # Force detached state
+                table=None,      # Force detached state
+                schema=record.schema,
+                is_deleted=record.is_deleted
+            )
+            detached_records.append(detached_record)
+        
+        # Create new RecordSet with detached records
+        return NocoDBRecordSet(records=detached_records, table=None)
+    
+    def __deepcopy__(self, memo: Dict[int, Any]) -> 'NocoDBRecordSet':
+        """
+        Create a deep copy of the RecordSet
+        
+        For attached RecordSets, this creates a detached copy with the same data but no table reference.
+        This follows the state irreversibility principle: online RecordSets cannot become offline
+        except through copy operations.
+        
+        Args:
+            memo: Memo dictionary for deep copy tracking
+            
+        Returns:
+            NocoDBRecordSet: Detached copy of the RecordSet
+        """
+        return self.__copy__()
+    
+    def attach(self, table: 'NocoDBTable', record_ids: List[int]) -> None:
+        """
+        Attach detached records to a table (protected method)
+        
+        This method should only be called by table's create_records method.
+        Strongly discouraged to call this method directly from external code.
+        
+        Args:
+            table: Table object to attach to
+            record_ids: List of record IDs assigned by NocoDB, in the same order as records
+            
+        Raises:
+            ValueError: If the RecordSet is not uniformly detached or if record_ids length doesn't match
+        """
+        if not self._is_uniformly_detached:
+            raise ValueError("Cannot attach non-detached RecordSet. Only uniformly detached RecordSets can be attached.")
+        
+        if len(record_ids) != len(self._data):
+            raise ValueError(f"Record IDs count ({len(record_ids)}) doesn't match record count ({len(self._data)})")
+        
+        # Update each record's attachment status
+        for i, record_id in enumerate(record_ids):
+            # Update metadata lists
+            self._record_ids[i] = record_id
+            self._is_attached[i] = True
+            
+            # Update the actual record object (if we had direct access)
+            # Note: Since we're using row-based storage, we don't have direct record references
+            # The record objects will be recreated with correct state when accessed
+        
+        # Update uniform state flags and table reference
+        self._is_uniformly_attached = True
+        self._is_uniformly_detached = False
+        self._table = table
     
     def __str__(self) -> str:
         """String representation"""
         table_id = self._table.table_id if self._table else None
-        return f"NocoDBRecordSet(count={len(self._data)}, table_id={table_id})"
+        status = "attached" if self._is_uniformly_attached else "detached"
+        return f"NocoDBRecordSet(count={len(self._data)}, table_id={table_id}, status={status})"
     
     def __repr__(self) -> str:
         """Official string representation"""
