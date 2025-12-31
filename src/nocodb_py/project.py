@@ -15,7 +15,7 @@ This module provides a project class to interact with NocoDB project-specific AP
 import time
 import threading
 import copy
-from typing import Dict, List, Any, Optional, Callable, Union, Literal
+from typing import Dict, List, Any, Optional, Callable, Union, Literal, Tuple
 from typing import TYPE_CHECKING
 import requests
 from .exceptions import ListRetrievalError
@@ -425,8 +425,8 @@ class NocoDBProject:
         columns: Optional[List[Dict[str, Any]]] = None,
         table_name: Optional[str] = None,
         description: Optional[str] = None,
-        return_type: Literal["object", "json"] = "object",
-    ) -> Union[Dict[str, Any], "NocoDBTable"]:
+        return_type: Literal["object", "json", "both"] = "object",
+    ) -> Union[Dict[str, Any], "NocoDBTable", Tuple["NocoDBTable", Dict[str, Any]]]:
         """
         Create a new table in the project.
 
@@ -439,12 +439,14 @@ class NocoDBProject:
                 - uidt (Union[str, NocoDBColumnType]): Column type
             table_name (Optional[str]): Table name, defaults to title if not provided
             description (Optional[str]): Table description
-            return_type (Literal["object", "json"]): Return type, defaults to "object"
+            return_type (Literal["object", "json", "both"]): Return type, defaults to "object"
                 - "object": Returns NocoDBTable object
                 - "json": Returns raw API JSON response
+                - "both": Returns tuple (NocoDBTable object, API JSON response)
 
         Returns:
-            Union[Dict[str, Any], NocoDBTable]: Created table information or table object
+            Union[Dict[str, Any], NocoDBTable, Tuple[NocoDBTable, Dict[str, Any]]]:
+                Created table information, table object, or tuple (object, json)
 
         Raises:
             ValueError: If required parameters are missing or invalid
@@ -557,9 +559,20 @@ class NocoDBProject:
             return table_obj
         elif return_type == "json":
             return response
+        elif return_type == "both":
+            table_id = response.get("id")
+            if not table_id:
+                raise ValueError("Table ID not found in API response")
+
+            # pylint: disable=import-outside-toplevel
+            # Reason: Avoid circular imports
+            from .table import NocoDBTable
+
+            table_obj = NocoDBTable(self, table_id=table_id)
+            return (table_obj, response)
         else:
             raise ValueError(
-                f"Invalid return_type: {return_type}. Must be 'object' or 'json'"
+                f"Invalid return_type: {return_type}. Must be 'object', 'json', or 'both'"
             )
 
     def update_table(
@@ -568,8 +581,8 @@ class NocoDBProject:
         description: Optional[str] = None,
         table_name: Optional[str] = None,
         title: Optional[str] = None,
-        return_type: Literal["object", "json"] = "json",
-    ) -> Union[Dict[str, Any], "NocoDBTable"]:
+        return_type: Literal["object", "json", "both"] = "json",
+    ) -> Union[Dict[str, Any], "NocoDBTable", Tuple["NocoDBTable", Dict[str, Any]]]:
         """
         Update an existing table in the project.
 
@@ -578,14 +591,16 @@ class NocoDBProject:
             description (Optional[str]): New table description
             table_name (Optional[str]): New table name
             title (Optional[str]): New table title
-            return_type (Literal["object", "json"]): Return type, defaults to "json"
+            return_type (Literal["object", "json", "both"]): Return type, defaults to "json"
                 - "json": Returns API JSON response
                 - "object": Returns NocoDBTable object
+                - "both": Returns tuple (NocoDBTable object, API JSON response)
 
         Returns:
-            Union[Dict[str, Any], NocoDBTable]:
+            Union[Dict[str, Any], NocoDBTable, Tuple[NocoDBTable, Dict[str, Any]]]:
                 - If return_type="json": Returns API JSON response
                 - If return_type="object": Returns NocoDBTable object
+                - If return_type="both": Returns tuple (NocoDBTable object, API JSON response)
 
         Raises:
             ValueError: If table_id is invalid or no update parameters provided
@@ -639,9 +654,16 @@ class NocoDBProject:
             return table_obj
         elif return_type == "json":
             return response
+        elif return_type == "both":
+            # pylint: disable=import-outside-toplevel
+            # Reason: Avoid circular imports
+            from .table import NocoDBTable
+
+            table_obj = NocoDBTable(self, table_id=table_id)
+            return (table_obj, response)
         else:
             raise ValueError(
-                f"Invalid return_type: {return_type}. Must be 'object' or 'json'"
+                f"Invalid return_type: {return_type}. Must be 'object', 'json', or 'both'"
             )
 
     def get_meta_v2_prefix(self) -> str:

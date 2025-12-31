@@ -15,7 +15,7 @@ This module provides a client class to interact with NocoDB API
 import time
 import threading
 import copy
-from typing import Dict, List, Any, Optional, Callable, Union, Literal
+from typing import Dict, List, Any, Optional, Callable, Union, Literal, Tuple
 from typing import TYPE_CHECKING
 import requests
 from .utils import parse_metadata_datetime, count_of_nocodb_data
@@ -559,7 +559,7 @@ class NocoDBClient:
     get_bases_full_info = get_projects_full_info
 
     def list_projects(self, force_refresh: bool = False,
-                      full_info: bool = False, convert_time: bool = False) -> list:
+                      full_info: bool = False, convert_time: bool = False) -> List[Dict[str, Any]]:
         """
         List projects
         
@@ -715,19 +715,21 @@ class NocoDBClient:
         return "/api/v2/meta"
 
     def create_project(self, title: str, description: Optional[str] = None,
-                      return_type: Literal["object", "json"] = 'object') -> Union[Dict, 'NocoDBProject']:
+                      return_type: Literal["object", "json", "both"] = 'object') -> Union[Dict, 'NocoDBProject', Tuple['NocoDBProject', Dict]]:
         """
         Create a new NocoDB project
         
         Args:
             title (str): Project title
             description (Optional[str]): Project description, optional
-            return_type (str): Return type, 'json' returns JSON response, 'object' returns NocoDBProject object, default is 'object'
+            return_type (str): Return type, 'json' returns JSON response, 'object' returns NocoDBProject object,
+                              'both' returns tuple (NocoDBProject object, JSON response), default is 'object'
             
         Returns:
-            Union[Dict, NocoDBProject]:
+            Union[Dict, NocoDBProject, Tuple[NocoDBProject, Dict]]:
                 - If return_type='json': Returns API JSON response
                 - If return_type='object': Returns NocoDBProject object
+                - If return_type='both': Returns tuple (NocoDBProject object, JSON response)
                 
         Raises:
             requests.exceptions.RequestException: HTTP request failed
@@ -757,8 +759,21 @@ class NocoDBClient:
             return project_obj
         elif return_type == 'json':
             return response
+        elif return_type == 'both':
+            project_id = response.get('id')
+            if project_id is None:
+                raise MissingFieldError(
+                    "Project ID not included in response",
+                    api_endpoint="/api/v2/meta/bases/",
+                    expected_format="JSON object with 'id' field"
+                )
+            # pylint: disable=import-outside-toplevel
+            from .project import NocoDBProject
+            project_obj = NocoDBProject(self, project_id,
+                                       timeout=self._timeout, cache_ttl=self._cache_ttl)
+            return (project_obj, response)
         else:
-            raise ValueError(f"Invalid return_type argument: {return_type}. Options: 'json' or 'object'")
+            raise ValueError(f"Invalid return_type argument: {return_type}. Options: 'json', 'object', or 'both'")
 
     def find_workspaces_by_title(self, title: str, match_func: Optional[Callable[[str, str], bool]] =None, force_refresh: bool = False) -> list:
         """
@@ -886,7 +901,7 @@ class NocoDBClient:
                       title: Optional[str] = None,
                       order: Optional[int] = None,
                       meta: Optional[Dict] = None,
-                      return_type: Literal["object", "json"] = 'json') -> Union[Dict, 'NocoDBProject']:
+                      return_type: Literal["object", "json", "both"] = 'json') -> Union[Dict, 'NocoDBProject', Tuple['NocoDBProject', Dict]]:
         """
         Update a project, supports project ID string or NocoDBProject object
         
@@ -895,12 +910,14 @@ class NocoDBClient:
             title (Optional[str]): New project title, optional
             order (Optional[int]): New project order, optional
             meta (Optional[Dict]): New project metadata, optional
-            return_type (str): Return type, 'json' returns JSON response, 'object' returns NocoDBProject object, default is 'json'
+            return_type (str): Return type, 'json' returns JSON response, 'object' returns NocoDBProject object,
+                              'both' returns tuple (NocoDBProject object, JSON response), default is 'json'
             
         Returns:
-            Union[Dict, NocoDBProject]:
+            Union[Dict, NocoDBProject, Tuple[NocoDBProject, Dict]]:
                 - If return_type='json': Returns API JSON response
                 - If return_type='object': Returns NocoDBProject object
+                - If return_type='both': Returns tuple (NocoDBProject object, JSON response)
                 
         Raises:
             requests.exceptions.RequestException: HTTP request failed
@@ -955,8 +972,12 @@ class NocoDBClient:
             return project_obj
         elif return_type == 'json':
             return response
+        elif return_type == 'both':
+            project_obj = NocoDBProject(self, project_id,
+                                       timeout=self._timeout, cache_ttl=self._cache_ttl)
+            return (project_obj, response)
         else:
-            raise ValueError(f"Invalid return_type argument: {return_type}. Options: 'json' or 'object'")
+            raise ValueError(f"Invalid return_type argument: {return_type}. Options: 'json', 'object', or 'both'")
 
     update_base = update_project
 
