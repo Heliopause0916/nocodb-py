@@ -25,7 +25,8 @@ project → table → record
 
 ### 主要测试文件
 - [`tests/tests.py`](../tests/tests.py) - 具有依赖链的 CRUD 测试
-- [`tests/test_api.py`](../tests/test_api.py) - 基础 API 集成测试
+- [`tests/test_local.py`](../tests/test_local.py) - 本地实例集成测试
+- [`tests/test_cloud.py`](../tests/test_cloud.py) - 云端实例集成测试
 
 ## 环境配置
 
@@ -74,8 +75,14 @@ python -m pytest tests/ -v
 # 运行依赖链测试
 python -m pytest tests/tests.py -v
 
-# 运行基础 API 测试
-python -m pytest tests/test_api.py -v
+# 运行本地实例测试
+python -m pytest tests/test_local.py -v
+
+# 运行云端实例测试
+python -m pytest tests/test_cloud.py -v
+
+# 运行所有测试
+python -m pytest tests/ -v
 ```
 
 ### 运行特定测试类
