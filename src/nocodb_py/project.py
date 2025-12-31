@@ -21,23 +21,31 @@ import requests
 from .exceptions import ListRetrievalError
 from .utils import parse_metadata_datetime, count_of_nocodb_data
 from .client import NocoDBClient
+
 if TYPE_CHECKING:
     from .table import NocoDBTable
+
 
 class NocoDBProject:
     """
     A class representing a NocoDB project with project-specific operations
-    
+
     Attributes:
         _client (NocoDBClient): The NocoDB client instance
         _project_id (str): The unique project identifier
     """
+
     # pylint: disable=too-many-arguments,too-many-positional-arguments
-    def __init__(self, client: NocoDBClient, project_id: str,
-                 timeout: int = 30, cache_ttl: Optional[int] = 300):
+    def __init__(
+        self,
+        client: NocoDBClient,
+        project_id: str,
+        timeout: int = 30,
+        cache_ttl: Optional[int] = 300,
+    ):
         """
         Initialize the NocoDBProject with client and project ID
-        
+
         Args:
             client (NocoDBClient): The NocoDB client instance
             project_id (str): The unique project identifier
@@ -58,7 +66,7 @@ class NocoDBProject:
     def __str__(self) -> str:
         """
         String representation of the NocoDBProject
-        
+
         Returns:
             str: String representation of the project
         """
@@ -67,7 +75,7 @@ class NocoDBProject:
     def __repr__(self) -> str:
         """
         Official string representation of the NocoDBProject
-        
+
         Returns:
             str: Official representation of the project
         """
@@ -76,10 +84,10 @@ class NocoDBProject:
     def __eq__(self, other: object) -> bool:
         """
         Check equality with another NocoDBProject
-        
+
         Args:
             other (object): The other object to compare with
-            
+
         Returns:
             bool: True if equal, False otherwise
         """
@@ -90,7 +98,7 @@ class NocoDBProject:
     def __hash__(self) -> int:
         """
         Hash implementation for NocoDBProject.
-        
+
         Returns:
             int: Hash value based on immutable attributes that define identity
         """
@@ -99,12 +107,13 @@ class NocoDBProject:
     def __copy__(self):
         """
         Shallow copy implementation for NocoDBProject.
-        
+
         Returns:
             NocoDBProject: A new project instance with same configuration but fresh cache
         """
-        new_project = NocoDBProject(self._client, self._project_id,
-                                  self._timeout, self._cache_ttl)
+        new_project = NocoDBProject(
+            self._client, self._project_id, self._timeout, self._cache_ttl
+        )
         # Reset cache state
         new_project._project_info_cache = None
         new_project._project_info_timestamp = 0
@@ -116,10 +125,10 @@ class NocoDBProject:
     def __deepcopy__(self, memo):
         """
         Deep copy implementation for NocoDBProject.
-        
+
         Args:
             memo: Memo dictionary for deepcopy
-            
+
         Returns:
             NocoDBProject: A new project instance with same configuration but fresh cache
         """
@@ -130,24 +139,24 @@ class NocoDBProject:
     def __getstate__(self):
         """
         Get state for pickling.
-        
+
         Returns:
             dict: State dictionary without non-serializable objects
         """
         state = self.__dict__.copy()
         # Remove non-serializable objects
-        state.pop('_cache_lock', None)
-        state.pop('_project_info_cache', None)
-        state.pop('_project_info_timestamp', None)
-        state.pop('_tables_cache', None)
-        state.pop('_tables_timestamp', None)
-        state.pop('_last_include_m2m', None)
+        state.pop("_cache_lock", None)
+        state.pop("_project_info_cache", None)
+        state.pop("_project_info_timestamp", None)
+        state.pop("_tables_cache", None)
+        state.pop("_tables_timestamp", None)
+        state.pop("_last_include_m2m", None)
         return state
 
     def __setstate__(self, state):
         """
         Set state from pickling.
-        
+
         Args:
             state: State dictionary
         """
@@ -164,128 +173,149 @@ class NocoDBProject:
     def project_id(self) -> str:
         """
         Get the project ID
-        
+
         Returns:
             str: The project ID
         """
         return self._project_id
-    
+
     def get_project_id(self) -> str:
         """
         Get the project ID (compatibility method)
-        
+
         Returns:
             str: The project ID
         """
         return self.project_id
-    
+
     get_id = get_project_id
 
     @property
     def client(self) -> NocoDBClient:
         """
         Get the client instance
-        
+
         Returns:
             NocoDBClient: The client instance
         """
         return self._client
-    
+
     def get_client(self) -> NocoDBClient:
         """
         Get the client instance (compatibility method)
-        
+
         Returns:
             NocoDBClient: The client instance
         """
         return self.client
 
-
     def get_full_info(self, force_refresh: bool = False) -> Dict:
         """
         Get the full information of the NocoDB instance
-        
+
         Returns:
             Dict[str, Any]: The information of the NocoDB instance (deep copy for safety)
         """
         with self._cache_lock:
             current_time = time.time()
             cache_ttl = self._cache_ttl
-            if(not force_refresh and
-               self._project_info_cache is not None and
-               (cache_ttl is None or current_time - self._project_info_timestamp < cache_ttl)
-               ):
+            if (
+                not force_refresh
+                and self._project_info_cache is not None
+                and (
+                    cache_ttl is None
+                    or current_time - self._project_info_timestamp < cache_ttl
+                )
+            ):
                 return copy.deepcopy(self._project_info_cache)
 
             # pylint: disable=protected-access
             # Reason: NocoDBClient._get is intentionally accessible to NocoDB-related classes
             self._project_info_cache = self._client._get(
                 f"{self._client.get_meta_v2_prefix()}/bases/{self._project_id}"
-                )
+            )
             self._project_info_timestamp = current_time
             return copy.deepcopy(self._project_info_cache)
 
-    def get_tables_full_info(self, force_refresh: bool = False, include_m2m: bool = False) -> Dict:
+    def get_tables_full_info(
+        self, force_refresh: bool = False, include_m2m: bool = False
+    ) -> Dict:
         """
         Get the full information of all tables in the project
-        
+
         Args:
             force_refresh (bool): Whether to force refresh the cache
             include_m2m (bool): Whether to include many-to-many relationship tables
-            
+
         Returns:
             Dict[str, Any]: The information of all tables in the project (deep copy for safety)
         """
         with self._cache_lock:
             current_time = time.time()
             cache_ttl = self._cache_ttl
-            
+
             # Check if include_m2m parameter has changed since last cache
-            include_m2m_changed = (self._last_include_m2m is not None and
-                                  self._last_include_m2m != include_m2m)
-            
+            include_m2m_changed = (
+                self._last_include_m2m is not None
+                and self._last_include_m2m != include_m2m
+            )
+
             # Force refresh if parameter changed or explicitly requested
             effective_force_refresh = force_refresh or include_m2m_changed
-            
-            if(not effective_force_refresh and
-              self._tables_cache is not None and
-              (cache_ttl is None or current_time - self._tables_timestamp < cache_ttl)
-              ):
+
+            if (
+                not effective_force_refresh
+                and self._tables_cache is not None
+                and (
+                    cache_ttl is None
+                    or current_time - self._tables_timestamp < cache_ttl
+                )
+            ):
                 return copy.deepcopy(self._tables_cache)
-            
-            params = {
-                "includeM2M": "true" if include_m2m else "false"
-            }
+
+            params = {"includeM2M": "true" if include_m2m else "false"}
             # pylint: disable=protected-access
             # Reason: NocoDBClient._get is intentionally accessible to NocoDB-related classes
-            self._tables_cache = self._client._get(f"{self.get_meta_v2_prefix()}/tables",
-                                                   params=params)
+            self._tables_cache = self._client._get(
+                f"{self.get_meta_v2_prefix()}/tables", params=params
+            )
             self._tables_timestamp = current_time
             self._last_include_m2m = include_m2m  # Store the parameter value
             return copy.deepcopy(self._tables_cache)
 
-    def list_tables(self, force_refresh: bool = False, include_m2m: bool = False,
-                      full_info: bool = False, convert_time: bool = False) -> List:
+    def list_tables(
+        self,
+        force_refresh: bool = False,
+        include_m2m: bool = False,
+        full_info: bool = False,
+        convert_time: bool = False,
+    ) -> List:
         """
         List all tables in the project
-        
+
         Args:
             force_refresh (bool): Force refresh the cache
             full_info (bool): Get full information of the tables
             convert_time (bool): Convert time fields to datetime objects
-            
+
         Returns:
             List: Tables list (deep copy for safety)
         """
-        tables_data = self.get_tables_full_info(force_refresh=force_refresh, include_m2m=include_m2m)
+        tables_data = self.get_tables_full_info(
+            force_refresh=force_refresh, include_m2m=include_m2m
+        )
         tables_list: list[dict[str, Any]] = tables_data.get("list", [])
 
         if convert_time:
             tables_list = [
                 {
                     **table,
-                    'created_at': parse_metadata_datetime(table.get('created_at', None)),
-                    'updated_at': parse_metadata_datetime(table.get('updated_at', None))
+                    "created_at": parse_metadata_datetime(
+                        table.get("created_at", None)
+                    ),
+                    "updated_at": parse_metadata_datetime(
+                        table.get("updated_at", None)
+                    ),
                 }
                 for table in tables_list
             ]
@@ -297,7 +327,7 @@ class NocoDBProject:
                     "title": table.get("title", ""),
                 }
                 for table in tables_list
-                ]
+            ]
         return copy.deepcopy(tables_list)
 
     def get_table_title(self, table_id: str, force_refresh: bool = False) -> str:
@@ -307,10 +337,10 @@ class NocoDBProject:
         Args:
             table_id (str): Table ID
             force_refresh (bool): Whether to force refresh cache
-            
+
         Returns:
             str: Table title
-            
+
         Raises:
             ValueError: When table is not found or title is empty
         """
@@ -319,28 +349,28 @@ class NocoDBProject:
             raise ListRetrievalError(
                 "Failed to get table list",
                 api_endpoint=f"/api/v2/meta/bases/{self._project_id}/tables",
-                expected_format="List of table objects"
+                expected_format="List of table objects",
             )
-            
+
         for table in tables:
             if table.get("id") == table_id:
                 title = table.get("title")
                 if title is not None:
                     return title
                 raise ValueError(f"Table {table_id} has empty title")
-                
+
         raise ValueError(f"Table with ID {table_id} not found")
 
     def get_title(self, force_refresh: bool = False) -> str:
         """
         Get the title of the project
-        
+
         Args:
             force_refresh (bool): Whether to force refresh the cache
-            
+
         Returns:
             str: The title of the project
-            
+
         Raises:
             ValueError: When title is not found in project info
         """
@@ -353,10 +383,10 @@ class NocoDBProject:
     def get_description(self, force_refresh: bool = False) -> Optional[str]:
         """
         Get the description of the project
-        
+
         Args:
             force_refresh (bool): Whether to force refresh the cache
-            
+
         Returns:
             Optional[str]: The description of the project, or None if not set
         """
@@ -366,37 +396,40 @@ class NocoDBProject:
     def count_tables(self, force_refresh: bool = False) -> Optional[int]:
         """
         Count the number of tables in the project
-        
+
         Returns:
             int: The number of tables in the project
         """
         tables_data = self.get_tables_full_info(force_refresh=force_refresh)
         return count_of_nocodb_data(tables_data)
 
-    def get_table(self, table_id: str, **kwargs) -> 'NocoDBTable':
+    def get_table(self, table_id: str, **kwargs) -> "NocoDBTable":
         """
         Get a NocoDBTable object from the project by its ID
-        
+
         Args:
             table_id (str): The ID of the table to get
-            
+
         Returns:
             'NocoDBTable': The table object
         """
         # pylint: disable=import-outside-toplevel
         # Reason: Avoid circular imports
         from .table import NocoDBTable
-        return NocoDBTable(self,
-                           table_id=table_id,
-                           **kwargs)
 
-    def create_table(self, title: str, columns: Optional[List[Dict[str, Any]]] = None,
-                    table_name: Optional[str] = None,
-                    description: Optional[str] = None,
-                    return_type: Literal["object", "json"] = "object") -> Union[Dict[str, Any], 'NocoDBTable']:
+        return NocoDBTable(self, table_id=table_id, **kwargs)
+
+    def create_table(
+        self,
+        title: str,
+        columns: Optional[List[Dict[str, Any]]] = None,
+        table_name: Optional[str] = None,
+        description: Optional[str] = None,
+        return_type: Literal["object", "json"] = "object",
+    ) -> Union[Dict[str, Any], "NocoDBTable"]:
         """
         Create a new table in the project.
-        
+
         Args:
             title (str): Table title (required)
             columns (Optional[List[Dict[str, Any]]]): List of column definitions,
@@ -409,10 +442,10 @@ class NocoDBProject:
             return_type (Literal["object", "json"]): Return type, defaults to "object"
                 - "object": Returns NocoDBTable object
                 - "json": Returns raw API JSON response
-            
+
         Returns:
             Union[Dict[str, Any], NocoDBTable]: Created table information or table object
-            
+
         Raises:
             ValueError: If required parameters are missing or invalid
             APIError: If API call fails
@@ -420,38 +453,43 @@ class NocoDBProject:
         # Validate required parameters
         if not title or not isinstance(title, str) or len(title.strip()) == 0:
             raise ValueError("Table title is required and must be a non-empty string")
-        
+
         # Set default values
         if columns is None:
             columns = [{"title": "Title", "uidt": "SingleLineText"}]
-        
+
         if table_name is None:
             table_name = title
-        
+
         # Validate columns list
         if not isinstance(columns, list) or len(columns) == 0:
             raise ValueError("Columns list must be a non-empty list")
-        
+
         # Validate each column definition
         for i, column in enumerate(columns):
             if not isinstance(column, dict):
                 raise ValueError(f"Column at index {i} must be a dictionary")
-            
+
             # Set default values for title and uidt if not provided
             col_title = column.get("title")
-            if not col_title or not isinstance(col_title, str) or len(col_title.strip()) == 0:
+            if (
+                not col_title
+                or not isinstance(col_title, str)
+                or len(col_title.strip()) == 0
+            ):
                 # Use default title "Title" with index suffix
                 col_title = f"Title_{i+1}" if i > 0 else "Title"
                 column["title"] = col_title
-            
+
             col_uidt = column.get("uidt")
             if col_uidt is None:
                 # Use default uidt "SingleLineText"
                 col_uidt = "SingleLineText"
                 column["uidt"] = col_uidt
-            
+
             # Convert NocoDBColumnType to string if needed
             from .column import NocoDBColumnType
+
             if isinstance(col_uidt, NocoDBColumnType):
                 col_uidt = col_uidt.value
                 column["uidt"] = col_uidt
@@ -459,67 +497,152 @@ class NocoDBProject:
                 # Use default uidt "SingleLineText" for empty string
                 col_uidt = "SingleLineText"
                 column["uidt"] = col_uidt
-            
+
             # Validate that uidt is a basic column type
             basic_type_strings = {t.value for t in NocoDBColumnType if t.is_basic()}
-            
+
             # Check if the uidt string is a valid basic type
             if col_uidt not in basic_type_strings:
                 # Try to see if it's a valid NocoDBColumnType but not basic
                 try:
                     column_type = NocoDBColumnType.from_string(col_uidt)
                     # If we get here, it's a valid type but not basic
-                    raise ValueError(f"Column type '{col_uidt}' is not a basic type. "
-                                   f"Only basic column types are allowed for table creation. "
-                                   f"Valid basic types are: {', '.join(sorted(basic_type_strings))}")
+                    raise ValueError(
+                        f"Column type '{col_uidt}' is not a basic type. "
+                        f"Only basic column types are allowed for table creation. "
+                        f"Valid basic types are: {', '.join(sorted(basic_type_strings))}"
+                    )
                 except ValueError:
                     # If it's not a valid NocoDBColumnType at all
-                    raise ValueError(f"Column type '{col_uidt}' is not a valid NocoDB column type. "
-                                   f"Valid basic types are: {', '.join(sorted(basic_type_strings))}")
-        
+                    raise ValueError(
+                        f"Column type '{col_uidt}' is not a valid NocoDB column type. "
+                        f"Valid basic types are: {', '.join(sorted(basic_type_strings))}"
+                    )
+
         # Build request body
-        request_body: Dict[str, Any] = {
-            "title": title.strip(),
-            "columns": columns
-        }
-        
+        request_body: Dict[str, Any] = {"title": title.strip(), "columns": columns}
+
         # Add optional parameters if provided
         if table_name is not None:
             if not isinstance(table_name, str) or len(table_name.strip()) == 0:
                 raise ValueError("Table name must be a non-empty string if provided")
             request_body["table_name"] = table_name.strip()
-        
+
         if description is not None:
             if not isinstance(description, str) or len(description.strip()) == 0:
                 raise ValueError("Description must be a non-empty string if provided")
             request_body["description"] = description.strip()
-        
+
         # Make API call
         # pylint: disable=protected-access
         # Reason: NocoDBClient._post is intentionally accessible to NocoDB-related classes
         response = self._client._post(
-            f"{self.get_meta_v2_prefix()}/tables",
-            json=request_body
+            f"{self.get_meta_v2_prefix()}/tables", json=request_body
         )
-        
+
         # Clear tables cache to ensure subsequent queries get fresh data
         self.clear_tables_cache()
-        
+
         # Handle return type
         if return_type == "object":
             table_id = response.get("id")
             if not table_id:
                 raise ValueError("Table ID not found in API response")
-            
+
             # pylint: disable=import-outside-toplevel
             # Reason: Avoid circular imports
             from .table import NocoDBTable
+
             table_obj = NocoDBTable(self, table_id=table_id)
             return table_obj
         elif return_type == "json":
             return response
         else:
-            raise ValueError(f"Invalid return_type: {return_type}. Must be 'object' or 'json'")
+            raise ValueError(
+                f"Invalid return_type: {return_type}. Must be 'object' or 'json'"
+            )
+
+    def update_table(
+        self,
+        table_id: str,
+        description: Optional[str] = None,
+        table_name: Optional[str] = None,
+        title: Optional[str] = None,
+        return_type: Literal["object", "json"] = "json",
+    ) -> Union[Dict[str, Any], "NocoDBTable"]:
+        """
+        Update an existing table in the project.
+
+        Args:
+            table_id (str): The ID of the table to update (required)
+            description (Optional[str]): New table description
+            table_name (Optional[str]): New table name
+            title (Optional[str]): New table title
+            return_type (Literal["object", "json"]): Return type, defaults to "json"
+                - "json": Returns API JSON response
+                - "object": Returns NocoDBTable object
+
+        Returns:
+            Union[Dict[str, Any], NocoDBTable]:
+                - If return_type="json": Returns API JSON response
+                - If return_type="object": Returns NocoDBTable object
+
+        Raises:
+            ValueError: If table_id is invalid or no update parameters provided
+            requests.exceptions.RequestException: If API call fails
+        """
+        # Validate table_id
+        if not table_id or not isinstance(table_id, str) or len(table_id.strip()) == 0:
+            raise ValueError("Table ID is required and must be a non-empty string")
+
+        # Validate that at least one optional parameter is provided
+        if description is None and table_name is None and title is None:
+            raise ValueError(
+                "At least one update parameter (description, table_name, or title) must be provided"
+            )
+
+        # Build request body with only provided parameters
+        request_body: Dict[str, Any] = {}
+
+        if description is not None:
+            if not isinstance(description, str) or len(description.strip()) == 0:
+                raise ValueError("Description must be a non-empty string if provided")
+            request_body["description"] = description.strip()
+
+        if table_name is not None:
+            if not isinstance(table_name, str) or len(table_name.strip()) == 0:
+                raise ValueError("Table name must be a non-empty string if provided")
+            request_body["table_name"] = table_name.strip()
+
+        if title is not None:
+            if not isinstance(title, str) or len(title.strip()) == 0:
+                raise ValueError("Title must be a non-empty string if provided")
+            request_body["title"] = title.strip()
+
+        # Make API call
+        # pylint: disable=protected-access
+        # Reason: NocoDBClient._patch is intentionally accessible to NocoDB-related classes
+        response = self._client._patch(
+            f"/api/v2/meta/tables/{table_id}", json=request_body
+        )
+
+        # Clear tables cache to ensure subsequent queries get fresh data
+        self.clear_tables_cache()
+
+        # Handle return type
+        if return_type == "object":
+            # pylint: disable=import-outside-toplevel
+            # Reason: Avoid circular imports
+            from .table import NocoDBTable
+
+            table_obj = NocoDBTable(self, table_id=table_id)
+            return table_obj
+        elif return_type == "json":
+            return response
+        else:
+            raise ValueError(
+                f"Invalid return_type: {return_type}. Must be 'object' or 'json'"
+            )
 
     def get_meta_v2_prefix(self) -> str:
         """
@@ -529,33 +652,39 @@ class NocoDBProject:
         """
         return f"/api/v2/meta/bases/{self._project_id}"
 
-    def find_tables_by_title(self, title: str, match_func :Optional[Callable[[str, str], bool]] =None,
-                            force_refresh: bool = False, include_m2m: bool = False) -> list:
+    def find_tables_by_title(
+        self,
+        title: str,
+        match_func: Optional[Callable[[str, str], bool]] = None,
+        force_refresh: bool = False,
+        include_m2m: bool = False,
+    ) -> list:
         """
         Find list of matching table_ids by title
-        
+
         Args:
             title (str): The title string to search for
             match_func (Callable): Matching function, accepts two string arguments and returns bool, defaults to exact match
             force_refresh (bool): Whether to force refresh the cache
             include_m2m (bool): Whether to include many-to-many relationship tables
-            
+
         Returns:
             List[str]: List of matching table_ids
         """
         # pylint: disable=import-outside-toplevel
         from .utils import exact_match  # Avoid circular import
-        
+
         if match_func is None:
             match_func = exact_match
-        
-        tables: Optional[List[Dict[str, Any]]] = self.list_tables(force_refresh=force_refresh, include_m2m=include_m2m)
+
+        tables: Optional[List[Dict[str, Any]]] = self.list_tables(
+            force_refresh=force_refresh, include_m2m=include_m2m
+        )
         if tables is None:
             return []
-        
+
         return [
-            table["id"] for table in tables
-            if match_func(title, table.get("title", ""))
+            table["id"] for table in tables if match_func(title, table.get("title", ""))
         ]
 
     def clear_project_info_cache(self):
@@ -574,5 +703,6 @@ class NocoDBProject:
             self._tables_cache = None
             self._tables_timestamp = 0
             self._last_include_m2m = None
+
 
 NocoDBBase = NocoDBProject
