@@ -164,18 +164,21 @@ def parse_utc_datetime(value: Optional[str], format_str: str = METADATA_DATETIME
                   DeprecationWarning, stacklevel=2)
     return parse_metadata_datetime(value, format_str)
 
-def count_of_nocodb_data(nocodb_data: Optional[Dict]) -> Optional[int]:
+def count_of_nocodb_data(nocodb_data: Optional[Dict]) -> int:
     """
     Count the number of NocoDB data items.
     
     Args:
-        nocodb_data (list): NocoDB data list
+        nocodb_data (Dict): NocoDB data dictionary
         
     Returns:
-        int: Number of data items, returns None if data is empty
+        int: Number of data items
+        
+    Raises:
+        ValueError: If data is empty
     """
     if not nocodb_data:
-        return None
+        raise ValueError("NocoDB data is empty")
 
     # Priority: get from pageInfo
     page_info = nocodb_data.get("pageInfo")
@@ -189,7 +192,7 @@ def count_of_nocodb_data(nocodb_data: Optional[Dict]) -> Optional[int]:
     if isinstance(list_data, List):
         return len(list_data)
 
-    return None
+    raise ValueError("Invalid NocoDB data format: cannot determine count")
 
 
 def exact_match(search_text: str, target_text: str) -> bool:

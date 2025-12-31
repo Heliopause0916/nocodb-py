@@ -164,15 +164,21 @@ class NocoDBClient:
         self._workspaces_cache = None
         self._workspaces_timeout = 0
 
-    def get_workspaces_full_info(self, force_refresh: bool = False) -> Optional[Dict]:
+    def get_workspaces_full_info(self, force_refresh: bool = False) -> Dict:
         """
-        Get all workspaces with full information
+        Get all workspaces with full information (NocoDB Cloud only)
+        
+        Args:
+            force_refresh: Force refresh cache
         
         Returns:
-            dict: The workspaces information (deep copy for safety)
+            Dict: The workspaces information (deep copy for safety)
+        
+        Raises:
+            ValueError: If called on a non-cloud instance
         """
         if not self.is_cloud():
-            return None
+            raise ValueError("get_workspaces_full_info() is only available for NocoDB Cloud instances")
         with self._cache_lock:
             current_time = time.time()
             cache_ttl = self._get_cache_ttl()
@@ -186,32 +192,47 @@ class NocoDBClient:
             self._workspaces_timeout = current_time
             return copy.deepcopy(self._workspaces_cache)
 
-    def count_workspaces(self, force_refresh: bool = False) -> Optional[int]:
+    def count_workspaces(self, force_refresh: bool = False) -> int:
         """
-        Count all workspaces
+        Count all workspaces (NocoDB Cloud only)
+        
+        Args:
+            force_refresh: Force refresh cache
         
         Returns:
             int: The number of workspaces
-        """
-        workspaces = self.get_workspaces_full_info(force_refresh=force_refresh)
-        if workspaces is None:
-            return None
         
+        Raises:
+            ValueError: If called on a non-cloud instance
+        """
+        if not self.is_cloud():
+            raise ValueError("count_workspaces() is only available for NocoDB Cloud instances")
+        
+        workspaces = self.get_workspaces_full_info(force_refresh=force_refresh)
         return count_of_nocodb_data(workspaces)
 
     def list_workspaces(self, force_refresh: bool = False,
-                        full_info: bool = False) -> Optional[List]:
+                        full_info: bool = False) -> List[Dict[str, Any]]:
         """
-        List all workspaces
+        List all workspaces (NocoDB Cloud only)
+        
+        Args:
+            force_refresh: Force refresh cache
+            full_info: Return full workspace information or simplified version
         
         Returns:
-            dict: The workspaces information (deep copy for safety)
+            List[Dict[str, Any]]: List of workspace information
+        
+        Raises:
+            ValueError: If called on a non-cloud instance
         """
+        if not self.is_cloud():
+            raise ValueError("list_workspaces() is only available for NocoDB Cloud instances")
 
         workspaces_data = self.get_workspaces_full_info(force_refresh=force_refresh)
-        if workspaces_data is None:
-            return None
-        workspaces_list = workspaces_data.get("list",[])
+        # Since we've verified it's a cloud instance, workspaces_data should be a dict
+        assert workspaces_data is not None, "Expected workspaces data for cloud instance"
+        workspaces_list = workspaces_data.get("list", [])
 
         if not full_info:
             workspaces_list = [
@@ -220,19 +241,24 @@ class NocoDBClient:
                     "title": workspace.get("title", ""),
                 }
                 for workspace in workspaces_list
-                ]
+            ]
         return copy.deepcopy(workspaces_list)
 
     def get_workspace(self, workspace_id: str) -> 'NocoDBWorkspace':
         """
-        Get a workspace by ID
+        Get a workspace by ID (NocoDB Cloud only)
         
         Args:
             workspace_id (str): The workspace ID
             
         Returns:
             NocoDBWorkspace: The workspace object
+        
+        Raises:
+            ValueError: If called on a non-cloud instance
         """
+        if not self.is_cloud():
+            raise ValueError("get_workspace() is only available for NocoDB Cloud instances")
 
         # pylint: disable=import-outside-toplevel
         from .workspace import NocoDBWorkspace
@@ -688,12 +714,8 @@ class NocoDBClient:
             raise ValueError("Workspace operations are only supported for cloud instances")
             
         workspaces = self.list_workspaces(force_refresh=force_refresh)
-        if workspaces is None:
-            raise ListRetrievalError(
-                "Failed to get workspace list",
-                api_endpoint="/api/v2/meta/workspaces/",
-                expected_format="List of workspace objects"
-            )
+        # Since we've verified it's a cloud instance, workspaces should be a list
+        assert workspaces is not None, "Expected workspace list for cloud instance"
             
         for workspace in workspaces:
             if workspace.get("id") == workspace_id:
@@ -775,9 +797,9 @@ class NocoDBClient:
         else:
             raise ValueError(f"Invalid return_type argument: {return_type}. Options: 'json', 'object', or 'both'")
 
-    def find_workspaces_by_title(self, title: str, match_func: Optional[Callable[[str, str], bool]] =None, force_refresh: bool = False) -> list:
+    def find_workspaces_by_title(self, title: str, match_func: Optional[Callable[[str, str], bool]] =None, force_refresh: bool = False) -> List[str]:
         """
-        Find matching workspace_id list by title
+        Find matching workspace_id list by title (NocoDB Cloud only)
         
         Args:
             title (str): Title string to search for
@@ -786,15 +808,21 @@ class NocoDBClient:
             
         Returns:
             List[str]: List of matching workspace IDs
+        
+        Raises:
+            ValueError: If called on a non-cloud instance
         """
+        if not self.is_cloud():
+            raise ValueError("find_workspaces_by_title() is only available for NocoDB Cloud instances")
+
         from .utils import exact_match  # Avoid circular import
 
         if match_func is None:
             match_func = exact_match
 
-        workspaces: Optional[List[Dict[str, Any]]] = self.list_workspaces(force_refresh=force_refresh)
-        if workspaces is None:
-            return []
+        workspaces = self.list_workspaces(force_refresh=force_refresh)
+        # Since we've verified it's a cloud instance, workspaces should be a list
+        assert workspaces is not None, "Expected workspace list for cloud instance"
 
         return [
             workspace["id"] for workspace in workspaces
