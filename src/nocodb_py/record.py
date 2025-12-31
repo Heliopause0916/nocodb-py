@@ -7,10 +7,10 @@ NocoDB Record and RecordSet classes for Python
 import copy
 from typing import Dict, List, Any, Optional, Iterator
 from typing import TYPE_CHECKING
+from .exceptions import RecordNotFoundError
 if TYPE_CHECKING:
     from .table import NocoDBTable
     from .column import NocoDBSchema
-    from .exceptions import RecordNotFoundError
 
 
 class NocoDBRecord:
