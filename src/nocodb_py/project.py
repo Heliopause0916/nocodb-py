@@ -539,7 +539,7 @@ class NocoDBProject:
         # pylint: disable=protected-access
         # Reason: NocoDBClient._post is intentionally accessible to NocoDB-related classes
         response = self._client._post(
-            f"{self.get_meta_v2_prefix()}/tables", json=request_body
+            f"{self.get_meta_v2_prefix()}/tables", data=request_body
         )
 
         # Clear tables cache to ensure subsequent queries get fresh data
@@ -638,7 +638,7 @@ class NocoDBProject:
         # pylint: disable=protected-access
         # Reason: NocoDBClient._patch is intentionally accessible to NocoDB-related classes
         response = self._client._patch(
-            f"/api/v2/meta/tables/{table_id}", json=request_body
+            f"/api/v2/meta/tables/{table_id}", data=request_body
         )
 
         # Clear tables cache to ensure subsequent queries get fresh data

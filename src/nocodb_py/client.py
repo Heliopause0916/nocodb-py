@@ -361,7 +361,17 @@ class NocoDBClient:
         if 'headers' in kwargs:
             headers.update(kwargs['headers'])
             del kwargs['headers']
-        response = requests.post(url, headers=headers, json=data, timeout=self._timeout, **kwargs)
+        
+        # 处理json参数冲突：如果kwargs中有json参数，则使用kwargs中的json，否则使用data参数
+        if 'json' in kwargs:
+            # 使用kwargs中的json参数，忽略data参数
+            json_data = kwargs['json']
+            del kwargs['json']
+            response = requests.post(url, headers=headers, json=json_data, timeout=self._timeout, **kwargs)
+        else:
+            # 使用data参数作为json数据
+            response = requests.post(url, headers=headers, json=data, timeout=self._timeout, **kwargs)
+        
         response.raise_for_status()
         return response.json()
 
@@ -396,19 +406,19 @@ class NocoDBClient:
     def _patch(self, path: str, data: Optional[Union[Dict, List[Dict]]] = None, **kwargs) -> Dict:
         """
         Send a PATCH request to the NocoDB API
-        
+
         Note: This method is intended for internal use by NocoDB-related classes
         (NocoDBProject, NocoDBTable, NocoDBColumn, etc.) and should not be called
         directly by external code.
-        
+
         Args:
             path (str): The API endpoint path
             data (Optional[Union[Dict, List[Dict]]]): The data to send in the request body
             **kwargs: Additional arguments to pass to requests.patch
-            
+
         Returns:
             Dict: The JSON response from the API
-            
+
         Raises:
             requests.exceptions.RequestException: If the request fails
         """
@@ -417,7 +427,17 @@ class NocoDBClient:
         if 'headers' in kwargs:
             headers.update(kwargs['headers'])
             del kwargs['headers']
-        response = requests.patch(url, headers=headers, json=data, timeout=self._timeout, **kwargs)
+        
+        # 处理json参数冲突：如果kwargs中有json参数，则使用kwargs中的json，否则使用data参数
+        if 'json' in kwargs:
+            # 使用kwargs中的json参数，忽略data参数
+            json_data = kwargs['json']
+            del kwargs['json']
+            response = requests.patch(url, headers=headers, json=json_data, timeout=self._timeout, **kwargs)
+        else:
+            # 使用data参数作为json数据
+            response = requests.patch(url, headers=headers, json=data, timeout=self._timeout, **kwargs)
+        
         response.raise_for_status()
         return response.json()
     
