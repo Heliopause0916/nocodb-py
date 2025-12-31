@@ -60,7 +60,6 @@ class NocoDBRecord:
         _record_id (Optional[int]): Record ID, None for offline records
         _table (Optional['NocoDBTable']): Table object, None for offline records
         _schema (Optional[NocoDBSchema]): Table schema for field validation
-        _original_data_hash (int): Hash of original data for modification detection
         _is_deleted (bool): Whether the record has been deleted from the database
     """
     
@@ -87,27 +86,7 @@ class NocoDBRecord:
         self._schema = schema
         self._is_deleted = is_deleted
         
-        # Track original data state for modification detection
-        self._original_data_hash = self._compute_data_hash()
     
-    def _compute_data_hash(self) -> int:
-        """Compute hash of the current data for modification detection"""
-        def _hash_value(value: Any) -> int:
-            """Recursively compute hash for nested data structures"""
-            if isinstance(value, dict):
-                # Hash dictionary by recursively hashing key-value pairs
-                return hash(frozenset((k, _hash_value(v)) for k, v in value.items()))
-            elif isinstance(value, (list, tuple)):
-                # Hash sequence by recursively hashing elements
-                return hash(tuple(_hash_value(item) for item in value))
-            elif isinstance(value, set):
-                # Hash set by recursively hashing elements
-                return hash(frozenset(_hash_value(item) for item in value))
-            else:
-                # Hash primitive values directly
-                return hash(value)
-        
-        return _hash_value(self._data)
     
     @property
     def record_id(self) -> Optional[int]:
@@ -139,10 +118,6 @@ class NocoDBRecord:
         """Whether the record is offline (detached)"""
         return not self.is_attached
     
-    @property
-    def is_modified(self) -> bool:
-        """Whether the record data has been modified since creation"""
-        return self._compute_data_hash() != self._original_data_hash
     
     @property
     def is_deleted(self) -> bool:
@@ -223,8 +198,6 @@ class NocoDBRecord:
             # Update internal data with latest data
             self._data = data
             
-            # Reset original data hash to reflect new state
-            self._original_data_hash = self._compute_data_hash()
             
             return self
         except RecordNotFoundError:
@@ -378,8 +351,6 @@ class NocoDBRecordSet:
         _record_ids (List[Optional[int]]): Record IDs for each record
         _is_attached (List[bool]): Attachment status for each record
         _is_deleted (List[bool]): Deletion status for each record
-        _is_modified (List[bool]): Modification status for each record
-        _original_hashes (List[int]): Original data hashes for modification detection
         _table (Optional['NocoDBTable']): Table object
         _schema (Optional['NocoDBSchema']): Table schema
         _is_attached_any (bool): Whether any record is attached to table
@@ -404,8 +375,6 @@ class NocoDBRecordSet:
         self._record_ids: List[Optional[int]] = []
         self._is_attached: List[bool] = []
         self._is_deleted: List[bool] = []
-        self._is_modified: List[bool] = []
-        self._original_hashes: List[int] = []
         self._table = table
         
         # Get schema from first record (if exists)
@@ -438,8 +407,6 @@ class NocoDBRecordSet:
             self._record_ids.append(record.record_id)
             self._is_attached.append(record.is_attached)
             self._is_deleted.append(record.is_deleted)
-            self._is_modified.append(record.is_modified)
-            self._original_hashes.append(record._original_data_hash)
     
     def __len__(self) -> int:
         """Number of records"""
@@ -508,18 +475,11 @@ class NocoDBRecordSet:
         """Get indices of detached records"""
         return [i for i, attached in enumerate(self._is_attached) if not attached]
     
-    def get_modified_records(self) -> List[int]:
-        """Get indices of modified records"""
-        return [i for i, modified in enumerate(self._is_modified) if modified]
     
     def get_deleted_records(self) -> List[int]:
         """Get indices of deleted records"""
         return [i for i, deleted in enumerate(self._is_deleted) if deleted]
     
-    def mark_all_clean(self) -> None:
-        """Mark all records as unmodified"""
-        for i in range(len(self._is_modified)):
-            self._is_modified[i] = False
     
     def update_record(self, internal_index: int, updates: Dict[str, Any]) -> None:
         """Update specific record data"""
@@ -532,8 +492,6 @@ class NocoDBRecordSet:
                 field_index = self._field_names.index(field)
                 self._data[internal_index][field_index] = value
         
-        # Mark as modified
-        self._is_modified[internal_index] = True
     
     def bulk_update(self, updates: Dict[int, Dict[str, Any]]) -> None:
         """Bulk update multiple records"""
@@ -570,8 +528,6 @@ class NocoDBRecordSet:
         self._record_ids.insert(index, record.record_id)
         self._is_attached.insert(index, record.is_attached)
         self._is_deleted.insert(index, record.is_deleted)
-        self._is_modified.insert(index, record.is_modified)
-        self._original_hashes.insert(index, record._original_data_hash)
         
         # Update attachment status
         if record.is_attached:
@@ -595,8 +551,6 @@ class NocoDBRecordSet:
         del self._record_ids[index]
         del self._is_attached[index]
         del self._is_deleted[index]
-        del self._is_modified[index]
-        del self._original_hashes[index]
         
         # Update attachment status if needed
         if not any(self._is_attached):
