@@ -216,3 +216,5 @@ __marimo__/
 .streamlit/secrets.toml
 !.kilocode
 .kilocode/mcp.json
+
+*.log
