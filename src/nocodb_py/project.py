@@ -669,17 +669,13 @@ class NocoDBProject:
     def get_meta_v2_prefix(self) -> str:
         """
         Get the meta v2 prefix for the project
+        
         Returns:
             str: The meta v2 prefix for the project
         """
-        # Check if the client is a workspace (cloud instance)
-        from .workspace import NocoDBWorkspace
-        if isinstance(self._client, NocoDBWorkspace):
-            workspace_id = self._client.get_workspace_id()
-            return f"/api/v2/meta/workspaces/{workspace_id}/bases/{self._project_id}"
-        else:
-            # Self-hosted instance
-            return f"/api/v2/meta/bases/{self._project_id}"
+        # Project-level operations always use the standard URL format
+        # List/create operations are handled at the client level, not project level
+        return f"/api/v2/meta/bases/{self._project_id}"
 
     def find_tables_by_title(
         self,

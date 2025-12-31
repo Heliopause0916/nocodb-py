@@ -532,6 +532,7 @@ class NocoDBClient:
         Returns:
             dict: Projects data (deep copy for safety)
         """
+        self._validate_project_access()
 
         with self._cache_lock:
             current_time = time.time()
@@ -757,7 +758,11 @@ class NocoDBClient:
             requests.exceptions.RequestException: HTTP request failed
             ValueError: When return_type parameter is invalid
         """
+        # Use get_meta_v2_prefix() which automatically handles workspace vs client differences
+        # For NocoDBWorkspace: returns /api/v2/meta/workspaces/{workspace_id}
+        # For NocoDBClient: returns /api/v2/meta
         path = f"{self.get_meta_v2_prefix()}/bases"
+            
         data = {"title": title}
         if description is not None:
             data["description"] = description
@@ -771,7 +776,7 @@ class NocoDBClient:
             if project_id is None:
                 raise MissingFieldError(
                     "Project ID not included in response",
-                    api_endpoint="/api/v2/meta/bases/",
+                    api_endpoint=path,
                     expected_format="JSON object with 'id' field"
                 )
             # pylint: disable=import-outside-toplevel
@@ -786,7 +791,7 @@ class NocoDBClient:
             if project_id is None:
                 raise MissingFieldError(
                     "Project ID not included in response",
-                    api_endpoint="/api/v2/meta/bases/",
+                    api_endpoint=path,
                     expected_format="JSON object with 'id' field"
                 )
             # pylint: disable=import-outside-toplevel
@@ -914,8 +919,8 @@ class NocoDBClient:
         # Validate project access permissions
         self._validate_project_access()
         
-        # Build API path
-        path = f"{self.get_meta_v2_prefix()}/bases/{project_id}"
+        # For delete operations, always use standard URL (not workspace-specific)
+        path = f"/api/v2/meta/bases/{project_id}"
         
         # Send DELETE request
         response = self._delete(path)
@@ -957,7 +962,7 @@ class NocoDBClient:
             client.update_project("proj_123", title="New Project Title")
             
             # Update project using NocoDBProject object
-            project_obj = client.get_project("proj_123")
+            project_obj = client.get_project("proj_123"
             client.update_project(project_obj, title="Updated Title", order=2)
         """
         # Extract project_id
@@ -979,8 +984,8 @@ class NocoDBClient:
         if meta is not None:
             update_data["meta"] = meta
         
-        # Build API path
-        path = f"{self.get_meta_v2_prefix()}/bases/{project_id}"
+        # For update operations, always use standard URL (not workspace-specific)
+        path = f"/api/v2/meta/bases/{project_id}"
         
         # Send PATCH request
         response = self._patch(path, data=update_data)
