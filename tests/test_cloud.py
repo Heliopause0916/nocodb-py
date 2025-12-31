@@ -78,13 +78,14 @@ def print_client_info(client: NocoDBClient) -> None:
         logger.warning(f"Failed to get client information: {e}")
 
 
+# 在模块级别创建并打印客户端信息一次
+client_instance_cloud = NocoDBClient(base_url=base_url_cloud, xc_token=api_key_cloud)
+print_client_info(client_instance_cloud)
+
 # Fixture：创建云端客户端
 @pytest.fixture
 def client_cloud() -> NocoDBClient:
-    client_instance = NocoDBClient(base_url=base_url_cloud, xc_token=api_key_cloud)
-    # 在每个测试开始时打印客户端信息
-    print_client_info(client_instance)
-    return client_instance
+    return client_instance_cloud
 
 
 # Fixture：查找目标工作区
