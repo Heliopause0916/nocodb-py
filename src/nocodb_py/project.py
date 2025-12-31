@@ -232,7 +232,7 @@ class NocoDBProject:
             # pylint: disable=protected-access
             # Reason: NocoDBClient._get is intentionally accessible to NocoDB-related classes
             self._project_info_cache = self._client._get(
-                f"{self._client.get_meta_v2_prefix()}/bases/{self._project_id}"
+                f"{self.get_meta_v2_prefix()}"
             )
             self._project_info_timestamp = current_time
             return copy.deepcopy(self._project_info_cache)
@@ -672,7 +672,14 @@ class NocoDBProject:
         Returns:
             str: The meta v2 prefix for the project
         """
-        return f"/api/v2/meta/bases/{self._project_id}"
+        # Check if the client is a workspace (cloud instance)
+        from .workspace import NocoDBWorkspace
+        if isinstance(self._client, NocoDBWorkspace):
+            workspace_id = self._client.get_workspace_id()
+            return f"/api/v2/meta/workspaces/{workspace_id}/bases/{self._project_id}"
+        else:
+            # Self-hosted instance
+            return f"/api/v2/meta/bases/{self._project_id}"
 
     def find_tables_by_title(
         self,
