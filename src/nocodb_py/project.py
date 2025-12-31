@@ -15,7 +15,7 @@ This module provides a project class to interact with NocoDB project-specific AP
 import time
 import threading
 import copy
-from typing import Dict, List, Any, Optional, Callable
+from typing import Dict, List, Any, Optional, Callable, Union, Literal
 from typing import TYPE_CHECKING
 import requests
 from .exceptions import ListRetrievalError
@@ -390,23 +390,28 @@ class NocoDBProject:
                            table_id=table_id,
                            **kwargs)
 
-    def create_table(self, title: str, columns: List[Dict[str, Any]],
+    def create_table(self, title: str, columns: Optional[List[Dict[str, Any]]] = None,
                     table_name: Optional[str] = None,
-                    description: Optional[str] = None) -> Dict[str, Any]:
+                    description: Optional[str] = None,
+                    return_type: Literal["object", "json"] = "object") -> Union[Dict[str, Any], 'NocoDBTable']:
         """
         Create a new table in the project.
         
         Args:
             title (str): Table title (required)
-            columns (List[Dict[str, Any]]): List of column definitions (required)
+            columns (Optional[List[Dict[str, Any]]]): List of column definitions,
+                defaults to [{"title": "Title", "uidt": "SingleLineText"}]
                 Each column must contain:
                 - title (str): Column title
-                - uidt (str): Column type (e.g., "SingleLineText", "Number", "Date")
-            table_name (Optional[str]): Table name
+                - uidt (Union[str, NocoDBColumnType]): Column type
+            table_name (Optional[str]): Table name, defaults to title if not provided
             description (Optional[str]): Table description
+            return_type (Literal["object", "json"]): Return type, defaults to "object"
+                - "object": Returns NocoDBTable object
+                - "json": Returns raw API JSON response
             
         Returns:
-            Dict[str, Any]: Created table information
+            Union[Dict[str, Any], NocoDBTable]: Created table information or table object
             
         Raises:
             ValueError: If required parameters are missing or invalid
@@ -416,21 +421,61 @@ class NocoDBProject:
         if not title or not isinstance(title, str) or len(title.strip()) == 0:
             raise ValueError("Table title is required and must be a non-empty string")
         
-        if not columns or not isinstance(columns, list) or len(columns) == 0:
-            raise ValueError("Columns list is required and must be a non-empty list")
+        # Set default values
+        if columns is None:
+            columns = [{"title": "Title", "uidt": "SingleLineText"}]
+        
+        if table_name is None:
+            table_name = title
+        
+        # Validate columns list
+        if not isinstance(columns, list) or len(columns) == 0:
+            raise ValueError("Columns list must be a non-empty list")
         
         # Validate each column definition
         for i, column in enumerate(columns):
             if not isinstance(column, dict):
                 raise ValueError(f"Column at index {i} must be a dictionary")
             
+            # Set default values for title and uidt if not provided
             col_title = column.get("title")
             if not col_title or not isinstance(col_title, str) or len(col_title.strip()) == 0:
-                raise ValueError(f"Column at index {i} must have a non-empty 'title' string")
+                # Use default title "Title" with index suffix
+                col_title = f"Title_{i+1}" if i > 0 else "Title"
+                column["title"] = col_title
             
             col_uidt = column.get("uidt")
-            if not col_uidt or not isinstance(col_uidt, str) or len(col_uidt.strip()) == 0:
-                raise ValueError(f"Column at index {i} must have a non-empty 'uidt' string")
+            if col_uidt is None:
+                # Use default uidt "SingleLineText"
+                col_uidt = "SingleLineText"
+                column["uidt"] = col_uidt
+            
+            # Convert NocoDBColumnType to string if needed
+            from .column import NocoDBColumnType
+            if isinstance(col_uidt, NocoDBColumnType):
+                col_uidt = col_uidt.value
+                column["uidt"] = col_uidt
+            elif not isinstance(col_uidt, str) or len(col_uidt.strip()) == 0:
+                # Use default uidt "SingleLineText" for empty string
+                col_uidt = "SingleLineText"
+                column["uidt"] = col_uidt
+            
+            # Validate that uidt is a basic column type
+            basic_type_strings = {t.value for t in NocoDBColumnType if t.is_basic()}
+            
+            # Check if the uidt string is a valid basic type
+            if col_uidt not in basic_type_strings:
+                # Try to see if it's a valid NocoDBColumnType but not basic
+                try:
+                    column_type = NocoDBColumnType.from_string(col_uidt)
+                    # If we get here, it's a valid type but not basic
+                    raise ValueError(f"Column type '{col_uidt}' is not a basic type. "
+                                   f"Only basic column types are allowed for table creation. "
+                                   f"Valid basic types are: {', '.join(sorted(basic_type_strings))}")
+                except ValueError:
+                    # If it's not a valid NocoDBColumnType at all
+                    raise ValueError(f"Column type '{col_uidt}' is not a valid NocoDB column type. "
+                                   f"Valid basic types are: {', '.join(sorted(basic_type_strings))}")
         
         # Build request body
         request_body: Dict[str, Any] = {
@@ -460,7 +505,21 @@ class NocoDBProject:
         # Clear tables cache to ensure subsequent queries get fresh data
         self.clear_tables_cache()
         
-        return response
+        # Handle return type
+        if return_type == "object":
+            table_id = response.get("id")
+            if not table_id:
+                raise ValueError("Table ID not found in API response")
+            
+            # pylint: disable=import-outside-toplevel
+            # Reason: Avoid circular imports
+            from .table import NocoDBTable
+            table_obj = NocoDBTable(self, table_id=table_id)
+            return table_obj
+        elif return_type == "json":
+            return response
+        else:
+            raise ValueError(f"Invalid return_type: {return_type}. Must be 'object' or 'json'")
 
     def get_meta_v2_prefix(self) -> str:
         """
